@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup rules for Android 11 and below.
+  Includes the SQLite database for data persistence across device transfers.
+-->
+<full-backup-content>
+    <!-- Include the SQLite database -->
+    <include domain="database" path="." />
+    <!-- Include shared preferences -->
+    <include domain="sharedpref" path="." />
+</full-backup-content>

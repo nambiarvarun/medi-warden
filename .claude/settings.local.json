@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "Bash(npx react-native run-android)",
+      "Bash(dir:*)",
+      "Bash(./gradlew.bat app:installDebug:*)",
+      "Bash(npm start)",
+      "Bash(JAVA_HOME=\"D:/softwares/Android/Android Studio/jbr\" ANDROID_HOME=\"C:/Users/varun/AppData/Local/Android/Sdk\" D:/workspace/claude-projects/medi-warden/android/gradlew.bat:*)",
+      "Bash(JAVA_HOME=\"D:/softwares/Android/Android Studio/jbr\" ANDROID_HOME=\"C:/Users/varun/AppData/Local/Android/Sdk\" GRADLE_USER_HOME=\"C:/Users/varun/.gradle\" D:/workspace/claude-projects/medi-warden/android/gradlew.bat:*)",
+      "Bash(npm start:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(where magick)",
+      "Bash(where:*)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(npx react-native start:*)",
+      "Bash(timeout:*)",
+      "Bash(./gradlew assembleRelease:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(./gradlew:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
