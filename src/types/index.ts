@@ -48,6 +48,7 @@ export interface DoseLog {
   scheduledTime: number; // Unix timestamp
   actionTime: number | null; // When user took action
   status: DoseStatus;
+  snoozedUntil: number | null; // Unix timestamp when snooze expires
 }
 
 // Settings types
