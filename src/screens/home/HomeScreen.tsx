@@ -12,9 +12,9 @@ import {
 } from '../../components/common';
 import { colors, spacing } from '../../theme';
 import { useSettingsStore, useProfileStore, useMedicationStore } from '../../store';
-import { formatDate } from '../../utils/dateUtils';
-import { Schedule } from '../../types';
-import { ScheduleRepository } from '../../services/database/repositories';
+import { formatDate, formatTime } from '../../utils/dateUtils';
+import { Schedule, DoseLog } from '../../types';
+import { ScheduleRepository, DoseLogRepository } from '../../services/database/repositories';
 import { takeMedicationDose, skipMedicationDose } from '../../services/scheduler/ReminderScheduler';
 
 export function HomeScreen() {
@@ -23,6 +23,7 @@ export function HomeScreen() {
   const { profiles, loadProfiles } = useProfileStore();
   const { medications, loadMedications, isLoading } = useMedicationStore();
   const [medicationSchedules, setMedicationSchedules] = useState<Record<string, Schedule[]>>({});
+  const [doseStatuses, setDoseStatuses] = useState<Record<string, DoseLog | null>>({});
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
 
@@ -39,6 +40,21 @@ export function HomeScreen() {
     setMedicationSchedules(schedules);
   }, [medications]);
 
+  // Load dose status for each medication
+  const loadDoseStatuses = useCallback(async () => {
+    const statuses: Record<string, DoseLog | null> = {};
+    for (const med of medications) {
+      try {
+        const status = await DoseLogRepository.getTodayStatusForMedication(med.id);
+        statuses[med.id] = status;
+      } catch (error) {
+        console.error('Failed to load dose status for medication:', med.id, error);
+        statuses[med.id] = null;
+      }
+    }
+    setDoseStatuses(statuses);
+  }, [medications]);
+
   useEffect(() => {
     loadProfiles();
   }, []);
@@ -52,8 +68,9 @@ export function HomeScreen() {
   useEffect(() => {
     if (medications.length > 0) {
       loadSchedules();
+      loadDoseStatuses();
     }
-  }, [medications, loadSchedules]);
+  }, [medications, loadSchedules, loadDoseStatuses]);
 
   // Reload when screen comes back into focus
   useFocusEffect(
@@ -61,7 +78,11 @@ export function HomeScreen() {
       if (activeProfileId) {
         loadMedications(activeProfileId);
       }
-    }, [activeProfileId, loadMedications])
+      // Also reload dose statuses when screen focuses
+      if (medications.length > 0) {
+        loadDoseStatuses();
+      }
+    }, [activeProfileId, loadMedications, medications.length, loadDoseStatuses])
   );
 
   // Format times for display
@@ -118,6 +139,40 @@ export function HomeScreen() {
   const today = new Date();
   const activeMeds = medications.filter((m) => m.isActive);
 
+  // Helper to get status display info for a medication
+  const getStatusDisplay = (medId: string): { text: string; color: string } | null => {
+    const doseLog = doseStatuses[medId];
+    if (!doseLog) return null;
+
+    const now = Date.now();
+
+    // Check if snoozed (pending with future snoozedUntil)
+    if (doseLog.status === 'pending' && doseLog.snoozedUntil && doseLog.snoozedUntil > now) {
+      return {
+        text: `Snoozed until ${formatTime(doseLog.snoozedUntil)}`,
+        color: colors.warning,
+      };
+    }
+
+    // Check if taken
+    if (doseLog.status === 'taken' && doseLog.actionTime) {
+      return {
+        text: `Taken at ${formatTime(doseLog.actionTime)}`,
+        color: colors.success,
+      };
+    }
+
+    // Check if skipped
+    if (doseLog.status === 'skipped' && doseLog.actionTime) {
+      return {
+        text: `Skipped at ${formatTime(doseLog.actionTime)}`,
+        color: colors.warning,
+      };
+    }
+
+    return null;
+  };
+
   // Sort medications by next intake time
   const sortedMeds = useMemo(() => {
     return [...activeMeds].sort((a, b) => {
@@ -135,6 +190,8 @@ export function HomeScreen() {
         if (activeProfileId) {
           loadMedications(activeProfileId);
         }
+        // Reload dose statuses to update UI
+        loadDoseStatuses();
         Alert.alert('Done', `${medName} marked as taken`);
       } else {
         Alert.alert('Info', 'No pending dose to take');
@@ -142,7 +199,7 @@ export function HomeScreen() {
     } catch (_error) {
       Alert.alert('Error', 'Failed to record dose');
     }
-  }, [activeProfileId, loadMedications]);
+  }, [activeProfileId, loadMedications, loadDoseStatuses]);
 
   // Handle skip action from UI
   const handleSkip = useCallback(async (medId: string, medName: string) => {
@@ -152,6 +209,8 @@ export function HomeScreen() {
         if (activeProfileId) {
           loadMedications(activeProfileId);
         }
+        // Reload dose statuses to update UI
+        loadDoseStatuses();
         Alert.alert('Done', `${medName} marked as skipped`);
       } else {
         Alert.alert('Info', 'No pending dose to skip');
@@ -159,7 +218,7 @@ export function HomeScreen() {
     } catch (_error) {
       Alert.alert('Error', 'Failed to record skip');
     }
-  }, [activeProfileId, loadMedications]);
+  }, [activeProfileId, loadMedications, loadDoseStatuses]);
 
   if (!activeProfile) {
     return (
@@ -205,6 +264,8 @@ export function HomeScreen() {
         ) : (
           sortedMeds.map((med) => {
             const times = formatScheduleTimes(medicationSchedules[med.id]);
+            const statusDisplay = getStatusDisplay(med.id);
+            const isTaken = doseStatuses[med.id]?.status === 'taken';
             return (
               <Card
                 key={med.id}
@@ -231,25 +292,34 @@ export function HomeScreen() {
                     </View>
                   )}
                 </View>
+                {statusDisplay && (
+                  <View style={styles.statusContainer}>
+                    <Body variant="labelMedium" color={statusDisplay.color}>
+                      {statusDisplay.text}
+                    </Body>
+                  </View>
+                )}
                 {!med.isStockIndefinite && med.stockCount <= med.stockReminderThreshold && (
                   <Body color={colors.warning} variant="bodySmall">
                     Low stock: {med.stockCount} remaining
                   </Body>
                 )}
-                <View style={styles.cardActions}>
-                  <Button
-                    title="Skip"
-                    variant="outline"
-                    size="small"
-                    onPress={() => handleSkip(med.id, med.name)}
-                  />
-                  <Button
-                    title="Take"
-                    variant="primary"
-                    size="small"
-                    onPress={() => handleTake(med.id, med.name)}
-                  />
-                </View>
+                {!isTaken && (
+                  <View style={styles.cardActions}>
+                    <Button
+                      title="Skip"
+                      variant="outline"
+                      size="small"
+                      onPress={() => handleSkip(med.id, med.name)}
+                    />
+                    <Button
+                      title="Take"
+                      variant="primary"
+                      size="small"
+                      onPress={() => handleTake(med.id, med.name)}
+                    />
+                  </View>
+                )}
               </Card>
             );
           })
@@ -305,6 +375,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: spacing.borderRadius.sm,
     marginLeft: spacing.sm,
+  },
+  statusContainer: {
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xs,
   },
   cardActions: {
     flexDirection: 'row',

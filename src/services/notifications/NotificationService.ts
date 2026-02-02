@@ -73,6 +73,7 @@ export async function scheduleReminder(
     timestamp: data.scheduledTime,
     alarmManager: {
       allowWhileIdle: true,
+      type: 0, // EXACT alarm type for reliable timing
     },
   };
 

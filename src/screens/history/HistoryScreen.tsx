@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, SectionList } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ScreenWrapper,
@@ -13,12 +13,14 @@ import { colors, spacing } from '../../theme';
 import { useSettingsStore, useMedicationStore } from '../../store';
 import { DoseLogRepository, MedicationRepository } from '../../services/database/repositories';
 import { DoseLog, AdherenceStats, Medication } from '../../types';
-import { formatDateTime, formatDate } from '../../utils/dateUtils';
+import { formatDateTime } from '../../utils/dateUtils';
 
 interface MedicationAdherence {
   medication: Medication;
   stats: AdherenceStats;
 }
+
+type TabType = 'activity' | 'stats';
 
 export function HistoryScreen() {
   const { activeProfileId } = useSettingsStore();
@@ -27,6 +29,7 @@ export function HistoryScreen() {
   const [logs, setLogs] = useState<DoseLog[]>([]);
   const [medicationStats, setMedicationStats] = useState<MedicationAdherence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('activity');
 
   const loadData = useCallback(async () => {
     if (!activeProfileId) return;
@@ -181,6 +184,44 @@ export function HistoryScreen() {
     );
   };
 
+  const renderActivityTab = () => (
+    <View style={styles.tabContent}>
+      {logs.length === 0 ? (
+        <EmptyState
+          title="No History Yet"
+          message="Your medication history will appear here once you start taking your medications."
+        />
+      ) : (
+        <FlatList
+          data={logs}
+          renderItem={renderLog}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
+  );
+
+  const renderStatsTab = () => (
+    <View style={styles.tabContent}>
+      {medicationStats.length === 0 ? (
+        <EmptyState
+          title="No Stats Yet"
+          message="Adherence statistics will appear here once you have medication history."
+        />
+      ) : (
+        <FlatList
+          data={medicationStats}
+          renderItem={renderMedicationStats}
+          keyExtractor={(item) => item.medication.id}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
+  );
+
   if (!activeProfileId) {
     return (
       <ScreenWrapper>
@@ -198,45 +239,38 @@ export function HistoryScreen() {
         <Heading>History</Heading>
       </View>
 
+      {/* Tab Bar */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
+          onPress={() => setActiveTab('activity')}
+        >
+          <Body
+            variant="labelLarge"
+            color={activeTab === 'activity' ? colors.primary : colors.text.secondary}
+          >
+            Activity
+          </Body>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
+          onPress={() => setActiveTab('stats')}
+        >
+          <Body
+            variant="labelLarge"
+            color={activeTab === 'stats' ? colors.primary : colors.text.secondary}
+          >
+            Stats
+          </Body>
+        </TouchableOpacity>
+      </View>
+
       {isLoading ? (
         <Loading message="Loading history..." />
       ) : (
         <>
-          {medicationStats.length > 0 && (
-            <View style={styles.statsContainer}>
-              <Body variant="titleMedium" style={styles.sectionTitle}>
-                Adherence by Medication
-              </Body>
-              <FlatList
-                data={medicationStats}
-                renderItem={renderMedicationStats}
-                keyExtractor={(item) => item.medication.id}
-                horizontal={false}
-                scrollEnabled={false}
-              />
-            </View>
-          )}
-
-          <View style={styles.logsSection}>
-            <Body variant="titleMedium" style={styles.sectionTitle}>
-              Recent Activity
-            </Body>
-
-            {logs.length === 0 ? (
-              <EmptyState
-                title="No History Yet"
-                message="Your medication history will appear here once you start taking your medications."
-              />
-            ) : (
-              <FlatList
-                data={logs}
-                renderItem={renderLog}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
-          </View>
+          {activeTab === 'activity' && renderActivityTab()}
+          {activeTab === 'stats' && renderStatsTab()}
         </>
       )}
     </ScreenWrapper>
@@ -248,12 +282,26 @@ const styles = StyleSheet.create({
     padding: spacing.screenHorizontal,
     paddingBottom: spacing.sm,
   },
-  statsContainer: {
+  tabBar: {
+    flexDirection: 'row',
     paddingHorizontal: spacing.screenHorizontal,
     marginBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[200],
   },
-  sectionTitle: {
-    marginBottom: spacing.sm,
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: colors.primary,
+  },
+  tabContent: {
+    flex: 1,
+    paddingHorizontal: spacing.screenHorizontal,
   },
   medicationStatsCard: {
     marginBottom: spacing.sm,
@@ -279,10 +327,6 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: 'center',
-  },
-  logsSection: {
-    flex: 1,
-    paddingHorizontal: spacing.screenHorizontal,
   },
   list: {
     paddingTop: 0,

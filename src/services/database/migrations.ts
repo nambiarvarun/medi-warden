@@ -90,6 +90,13 @@ const migrations: Migration[] = [
       `ALTER TABLE medications ADD COLUMN is_stock_indefinite INTEGER DEFAULT 0`,
     ],
   },
+  {
+    version: 3,
+    up: [
+      // Add snoozed_until column to dose_logs table for tracking snooze state
+      `ALTER TABLE dose_logs ADD COLUMN snoozed_until INTEGER`,
+    ],
+  },
 ];
 
 /**

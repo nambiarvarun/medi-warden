@@ -263,6 +263,18 @@ export async function handleSnoozeAction(
   snoozeDuration: number,
   isStrictMode: boolean
 ): Promise<void> {
+  const snoozeUntil = Date.now() + snoozeDuration * 60 * 1000;
+
+  // Update the dose log with snooze time
+  const doseLog = await DoseLogRepository.getByScheduledTime(
+    data.scheduleId,
+    data.scheduledTime
+  );
+
+  if (doseLog) {
+    await DoseLogRepository.updateSnooze(doseLog.id, snoozeUntil);
+  }
+
   // Schedule a new reminder for later
   await scheduleSnooze(data, snoozeDuration, isStrictMode);
 }

@@ -9,6 +9,7 @@ interface DoseLogRow {
   scheduled_time: number;
   action_time: number | null;
   status: DoseStatus;
+  snoozed_until: number | null;
 }
 
 function mapRowToDoseLog(row: DoseLogRow): DoseLog {
@@ -19,6 +20,7 @@ function mapRowToDoseLog(row: DoseLogRow): DoseLog {
     scheduledTime: row.scheduled_time,
     actionTime: row.action_time,
     status: row.status,
+    snoozedUntil: row.snoozed_until,
   };
 }
 
@@ -125,8 +127,8 @@ export const DoseLogRepository = {
 
     await execute(
       `INSERT INTO dose_logs
-       (id, medication_id, schedule_id, scheduled_time, action_time, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       (id, medication_id, schedule_id, scheduled_time, action_time, status, snoozed_until)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         data.medicationId,
@@ -134,6 +136,7 @@ export const DoseLogRepository = {
         data.scheduledTime,
         data.actionTime,
         data.status,
+        data.snoozedUntil || null,
       ]
     );
 
@@ -149,9 +152,50 @@ export const DoseLogRepository = {
     actionTime?: number
   ): Promise<void> {
     await execute(
-      'UPDATE dose_logs SET status = ?, action_time = ? WHERE id = ?',
+      'UPDATE dose_logs SET status = ?, action_time = ?, snoozed_until = NULL WHERE id = ?',
       [status, actionTime || Date.now(), id]
     );
+  },
+
+  /**
+   * Update snooze time for a dose log
+   */
+  async updateSnooze(
+    id: string,
+    snoozedUntil: number
+  ): Promise<void> {
+    await execute(
+      'UPDATE dose_logs SET snoozed_until = ? WHERE id = ?',
+      [snoozedUntil, id]
+    );
+  },
+
+  /**
+   * Clear snooze for a dose log
+   */
+  async clearSnooze(id: string): Promise<void> {
+    await execute(
+      'UPDATE dose_logs SET snoozed_until = NULL WHERE id = ?',
+      [id]
+    );
+  },
+
+  /**
+   * Get dose logs with active snooze for a profile
+   */
+  async getSnoozedForProfile(profileId: string): Promise<DoseLog[]> {
+    const now = Date.now();
+    const rows = await query<DoseLogRow>(
+      `SELECT dl.* FROM dose_logs dl
+       INNER JOIN medications m ON dl.medication_id = m.id
+       WHERE m.profile_id = ?
+       AND dl.status = 'pending'
+       AND dl.snoozed_until IS NOT NULL
+       AND dl.snoozed_until > ?
+       ORDER BY dl.snoozed_until ASC`,
+      [profileId, now]
+    );
+    return rows.map(mapRowToDoseLog);
   },
 
   /**
@@ -270,5 +314,45 @@ export const DoseLogRepository = {
     await execute('DELETE FROM dose_logs WHERE scheduled_time < ?', [
       timestamp,
     ]);
+  },
+
+  /**
+   * Get today's dose status for a medication
+   * Returns the most recent action or pending dose for today
+   */
+  async getTodayStatusForMedication(medicationId: string): Promise<DoseLog | null> {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+
+    // First try to get any taken/skipped dose for today (most recent)
+    let rows = await query<DoseLogRow>(
+      `SELECT * FROM dose_logs
+       WHERE medication_id = ?
+       AND scheduled_time >= ?
+       AND scheduled_time <= ?
+       AND status IN ('taken', 'skipped')
+       ORDER BY action_time DESC
+       LIMIT 1`,
+      [medicationId, startOfDay, endOfDay]
+    );
+
+    if (rows.length > 0) {
+      return mapRowToDoseLog(rows[0]);
+    }
+
+    // If no taken/skipped, get the next pending dose (might be snoozed)
+    rows = await query<DoseLogRow>(
+      `SELECT * FROM dose_logs
+       WHERE medication_id = ?
+       AND scheduled_time >= ?
+       AND scheduled_time <= ?
+       AND status = 'pending'
+       ORDER BY scheduled_time ASC
+       LIMIT 1`,
+      [medicationId, startOfDay, endOfDay]
+    );
+
+    return rows.length > 0 ? mapRowToDoseLog(rows[0]) : null;
   },
 };
