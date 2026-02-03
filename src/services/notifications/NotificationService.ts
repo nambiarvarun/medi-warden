@@ -116,6 +116,8 @@ export async function scheduleReminder(
           medicationId: data.medicationId,
           scheduleId: data.scheduleId,
           scheduledTime: data.scheduledTime.toString(),
+          medicationName: data.medicationName,
+          dosage: data.dosage,
           type: 'reminder',
         },
       },
@@ -153,6 +155,8 @@ export async function scheduleReminder(
           medicationId: data.medicationId,
           scheduleId: data.scheduleId,
           scheduledTime: data.scheduledTime.toString(),
+          medicationName: data.medicationName,
+          dosage: data.dosage,
           type: 'reminder',
         },
       },
@@ -254,8 +258,8 @@ export function setNotificationHandlers(handlers: {
       const data: NotificationData = {
         medicationId: notification.data.medicationId as string,
         scheduleId: notification.data.scheduleId as string,
-        medicationName: notification.title || '',
-        dosage: '',
+        medicationName: (notification.data.medicationName as string) || '',
+        dosage: (notification.data.dosage as string) || '',
         scheduledTime: parseInt(notification.data.scheduledTime as string, 10),
         color: '',
       };

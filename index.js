@@ -57,8 +57,8 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
           {
             medicationId,
             scheduleId,
-            medicationName: notification.title || '',
-            dosage: '',
+            medicationName: notification.data.medicationName || '',
+            dosage: notification.data.dosage || '',
             scheduledTime: parseInt(scheduledTime, 10),
             color: '',
           },
