@@ -168,12 +168,14 @@ export async function takeMedicationDose(medicationId: string): Promise<boolean>
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+  // Include previous day's evening doses (12 hours before today) for after-midnight actions
+  const searchStart = startOfDay - 12 * 60 * 60 * 1000;
 
-  // Look for pending dose logs for today
+  // Look for pending dose logs (including yesterday's evening doses)
   for (const schedule of schedules) {
     const pendingDose = await DoseLogRepository.getPendingForSchedule(
       schedule.id,
-      startOfDay,
+      searchStart,
       endOfDay
     );
 
@@ -205,12 +207,14 @@ export async function skipMedicationDose(medicationId: string): Promise<boolean>
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+  // Include previous day's evening doses (12 hours before today) for after-midnight actions
+  const searchStart = startOfDay - 12 * 60 * 60 * 1000;
 
-  // Look for pending dose logs for today
+  // Look for pending dose logs (including yesterday's evening doses)
   for (const schedule of schedules) {
     const pendingDose = await DoseLogRepository.getPendingForSchedule(
       schedule.id,
-      startOfDay,
+      searchStart,
       endOfDay
     );
 

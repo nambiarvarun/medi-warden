@@ -319,13 +319,16 @@ export const DoseLogRepository = {
   /**
    * Get today's dose status for a medication
    * Returns the most recent action or pending dose for today
+   * Includes yesterday's evening doses (12 hours before today) for after-midnight scenarios
    */
   async getTodayStatusForMedication(medicationId: string): Promise<DoseLog | null> {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+    // Include previous day's evening doses (12 hours before today) for after-midnight actions
+    const searchStart = startOfDay - 12 * 60 * 60 * 1000;
 
-    // First try to get any taken/skipped dose for today (most recent)
+    // First try to get any taken/skipped dose (most recent action)
     let rows = await query<DoseLogRow>(
       `SELECT * FROM dose_logs
        WHERE medication_id = ?
@@ -334,7 +337,7 @@ export const DoseLogRepository = {
        AND status IN ('taken', 'skipped')
        ORDER BY action_time DESC
        LIMIT 1`,
-      [medicationId, startOfDay, endOfDay]
+      [medicationId, searchStart, endOfDay]
     );
 
     if (rows.length > 0) {
@@ -350,7 +353,7 @@ export const DoseLogRepository = {
        AND status = 'pending'
        ORDER BY scheduled_time ASC
        LIMIT 1`,
-      [medicationId, startOfDay, endOfDay]
+      [medicationId, searchStart, endOfDay]
     );
 
     return rows.length > 0 ? mapRowToDoseLog(rows[0]) : null;

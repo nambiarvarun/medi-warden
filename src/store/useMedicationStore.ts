@@ -5,6 +5,7 @@ import {
   ScheduleRepository,
 } from '../services/database/repositories';
 import { scheduleMedicationReminders } from '../services/scheduler/ReminderScheduler';
+import { cancelMedicationNotifications } from '../services/notifications/NotificationService';
 import { useSettingsStore } from './useSettingsStore';
 
 interface MedicationState {
@@ -99,12 +100,36 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   updateMedication: async (id, data) => {
     try {
+      // Check if isActive is being changed
+      const currentMedication = get().medications.find((m) => m.id === id);
+      const isActiveChanging =
+        data.isActive !== undefined &&
+        currentMedication &&
+        data.isActive !== currentMedication.isActive;
+
       await MedicationRepository.update(id, data);
       set((state) => ({
         medications: state.medications.map((m) =>
           m.id === id ? { ...m, ...data } : m
         ),
       }));
+
+      // Handle notification changes when isActive changes
+      if (isActiveChanging) {
+        if (data.isActive === false) {
+          // Deactivating - cancel all notifications for this medication
+          await cancelMedicationNotifications(id);
+        } else if (data.isActive === true && currentMedication) {
+          // Activating - reschedule notifications
+          const schedules = await ScheduleRepository.getByMedicationId(id);
+          const { reminderMode } = useSettingsStore.getState();
+          await scheduleMedicationReminders(
+            { ...currentMedication, isActive: true },
+            schedules,
+            reminderMode === 'strict'
+          );
+        }
+      }
     } catch (error) {
       console.error('Failed to update medication:', error);
       throw error;
@@ -153,6 +178,8 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
   deleteMedication: async (id) => {
     try {
+      // Cancel all notifications for this medication before deleting
+      await cancelMedicationNotifications(id);
       await MedicationRepository.delete(id);
       set((state) => ({
         medications: state.medications.filter((m) => m.id !== id),
