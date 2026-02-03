@@ -265,7 +265,9 @@ export function HomeScreen() {
           sortedMeds.map((med) => {
             const times = formatScheduleTimes(medicationSchedules[med.id]);
             const statusDisplay = getStatusDisplay(med.id);
-            const isTaken = doseStatuses[med.id]?.status === 'taken';
+            const doseStatus = doseStatuses[med.id]?.status;
+            const isTaken = doseStatus === 'taken';
+            const isSkipped = doseStatus === 'skipped';
             return (
               <Card
                 key={med.id}
@@ -306,12 +308,14 @@ export function HomeScreen() {
                 )}
                 {!isTaken && (
                   <View style={styles.cardActions}>
-                    <Button
-                      title="Skip"
-                      variant="outline"
-                      size="small"
-                      onPress={() => handleSkip(med.id, med.name)}
-                    />
+                    {!isSkipped && (
+                      <Button
+                        title="Skip"
+                        variant="outline"
+                        size="small"
+                        onPress={() => handleSkip(med.id, med.name)}
+                      />
+                    )}
                     <Button
                       title="Take"
                       variant="primary"
