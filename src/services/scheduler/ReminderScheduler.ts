@@ -30,6 +30,11 @@ export async function scheduleMedicationReminders(
   // Cancel existing notifications for this medication
   await cancelMedicationNotifications(medication.id);
 
+  // Skip if medication is inactive
+  if (!medication.isActive) {
+    return;
+  }
+
   const now = new Date();
   const endDate = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
 
