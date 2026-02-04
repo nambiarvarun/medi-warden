@@ -107,9 +107,18 @@ export function HistoryScreen() {
       <Card style={styles.medicationStatsCard}>
         <View style={styles.medicationHeader}>
           <View style={[styles.colorDot, { backgroundColor: medication.color }]} />
-          <Body variant="titleMedium" style={styles.medicationName}>
-            {medication.name}
-          </Body>
+          <View style={styles.medicationNameContainer}>
+            <Body variant="titleMedium" style={styles.medicationName}>
+              {medication.name}
+            </Body>
+            {!medication.isActive && (
+              <View style={styles.inactiveBadge}>
+                <Body variant="labelSmall" color={colors.text.secondary}>
+                  Inactive
+                </Body>
+              </View>
+            )}
+          </View>
           <Body variant="titleLarge" color={colors.primary}>
             {stats.adherencePercentage}%
           </Body>
@@ -318,8 +327,20 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: spacing.sm,
   },
-  medicationName: {
+  medicationNameContainer: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  medicationName: {
+    flexShrink: 1,
+  },
+  inactiveBadge: {
+    backgroundColor: colors.gray[200],
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: spacing.borderRadius.sm,
   },
   statsRow: {
     flexDirection: 'row',
