@@ -22,7 +22,11 @@
       "Bash(./gradlew assembleRelease:*)",
       "Bash(./gradlew clean:*)",
       "Bash(./gradlew:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd complete Medi-Warden app with enhancements\n\nFeatures:\n- Multi-profile medication tracking with SQLite\n- Flexible scheduling \\(daily/weekly/interval\\)\n- Notification system with strict/relaxed modes\n- Adherence tracking and history\n\nRecent enhancements:\n- Home screen: medications sorted by intake time\n- Home screen: Take and Skip buttons for in-app dose logging\n- Indefinite stock option: skip stock tracking for some meds\n- Stock info hidden throughout app for indefinite meds\n- Android backup enabled for data persistence across updates\n\nDatabase: v2 with isStockIndefinite migration\nNew icons and branding\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix notification and day boundary issues for medications\n\n- Cancel notifications when medication is deactivated or deleted\n- Reschedule notifications when medication is reactivated\n- Extend dose search window to 12 hours before today to handle\n  after-midnight actions for evening doses \\(e.g., 9 PM dose taken\n  at 00:05 AM now properly matches the previous day''s schedule\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)"
     ]
   }
 }

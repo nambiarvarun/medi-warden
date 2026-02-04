@@ -78,11 +78,7 @@ export function HomeScreen() {
       if (activeProfileId) {
         loadMedications(activeProfileId);
       }
-      // Also reload dose statuses when screen focuses
-      if (medications.length > 0) {
-        loadDoseStatuses();
-      }
-    }, [activeProfileId, loadMedications, medications.length, loadDoseStatuses])
+    }, [activeProfileId, loadMedications])
   );
 
   // Format times for display
