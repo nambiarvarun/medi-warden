@@ -31,6 +31,7 @@ interface MedicationState {
   decrementStock: (id: string) => Promise<void>;
   getMedicationById: (id: string) => Medication | undefined;
   getLowStockMedications: (profileId: string) => Promise<Medication[]>;
+  reset: () => void;
 }
 
 export const useMedicationStore = create<MedicationState>((set, get) => ({
@@ -85,11 +86,13 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
 
       // Schedule notifications for this medication
       const { reminderMode } = useSettingsStore.getState();
-      await scheduleMedicationReminders(
+      const scheduledCount = await scheduleMedicationReminders(
         medication,
         createdSchedules,
         reminderMode === 'strict'
       );
+
+      console.log(`[Store] Medication ${medication.name} created, ${scheduledCount} notifications scheduled`);
 
       return medication;
     } catch (error) {
@@ -164,11 +167,13 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       // Reschedule notifications for this medication
       if (updatedMedication) {
         const { reminderMode } = useSettingsStore.getState();
-        await scheduleMedicationReminders(
+        const scheduledCount = await scheduleMedicationReminders(
           updatedMedication,
           createdSchedules,
           reminderMode === 'strict'
         );
+
+        console.log(`[Store] Medication ${updatedMedication.name} updated, ${scheduledCount} notifications scheduled`);
       }
     } catch (error) {
       console.error('Failed to update medication with schedules:', error);
@@ -215,5 +220,9 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
       console.error('Failed to get low stock medications:', error);
       return [];
     }
+  },
+
+  reset: () => {
+    set({ medications: [], isLoading: false, error: null });
   },
 }));

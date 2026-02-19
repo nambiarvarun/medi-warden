@@ -78,6 +78,7 @@ export type MainTabParamList = {
   History: undefined;
   Profiles: undefined;
   Settings: undefined;
+  Schedules: undefined;
 };
 
 // Reminder/Notification types

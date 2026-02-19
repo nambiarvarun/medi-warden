@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { View, StyleSheet, Alert, AppState, AppStateStatus } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   ScreenWrapper,
@@ -13,6 +13,7 @@ import {
 import { colors, spacing } from '../../theme';
 import { useSettingsStore, useProfileStore, useMedicationStore } from '../../store';
 import { formatDate, formatTime } from '../../utils/dateUtils';
+import { isToday } from 'date-fns';
 import { Schedule, DoseLog } from '../../types';
 import { ScheduleRepository, DoseLogRepository } from '../../services/database/repositories';
 import { takeMedicationDose, skipMedicationDose } from '../../services/scheduler/ReminderScheduler';
@@ -73,6 +74,8 @@ export function HomeScreen() {
   }, [medications, loadSchedules, loadDoseStatuses]);
 
   // Reload when screen comes back into focus
+  // NOTE: loadMedications triggers the medications useEffect which calls loadDoseStatuses,
+  // so dose statuses are always refreshed on focus without needing them as dependencies here.
   useFocusEffect(
     useCallback(() => {
       if (activeProfileId) {
@@ -80,6 +83,22 @@ export function HomeScreen() {
       }
     }, [activeProfileId, loadMedications])
   );
+
+  // Refresh dose statuses when app returns to foreground (e.g. after snoozing from notification shade)
+  // Use a ref for loadDoseStatuses to avoid re-registering the listener on every medications change.
+  const appState = useRef(AppState.currentState);
+  const loadDoseStatusesRef = useRef(loadDoseStatuses);
+  loadDoseStatusesRef.current = loadDoseStatuses;
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        loadDoseStatusesRef.current();
+      }
+      appState.current = nextAppState;
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
 
   // Format times for display
   const formatScheduleTimes = (schedules: Schedule[] | undefined): string => {
@@ -152,16 +171,26 @@ export function HomeScreen() {
 
     // Check if taken
     if (doseLog.status === 'taken' && doseLog.actionTime) {
+      const actionDate = new Date(doseLog.actionTime);
+      // Show time only for today, show date for previous days
+      const displayText = isToday(actionDate)
+        ? `Taken at ${formatTime(doseLog.actionTime)}`
+        : `Taken ${formatDate(doseLog.actionTime)}`;
       return {
-        text: `Taken at ${formatTime(doseLog.actionTime)}`,
+        text: displayText,
         color: colors.success,
       };
     }
 
     // Check if skipped
     if (doseLog.status === 'skipped' && doseLog.actionTime) {
+      const actionDate = new Date(doseLog.actionTime);
+      // Show time only for today, show date for previous days
+      const displayText = isToday(actionDate)
+        ? `Skipped at ${formatTime(doseLog.actionTime)}`
+        : `Skipped ${formatDate(doseLog.actionTime)}`;
       return {
-        text: `Skipped at ${formatTime(doseLog.actionTime)}`,
+        text: displayText,
         color: colors.warning,
       };
     }
@@ -169,14 +198,31 @@ export function HomeScreen() {
     return null;
   };
 
-  // Sort medications by next intake time
+  // Check if medication's dose for today is fully completed (taken today)
+  const isMedCompletedToday = (medId: string): boolean => {
+    const doseLog = doseStatuses[medId];
+    if (!doseLog) return false;
+    // Only 'taken' is fully completed; 'skipped' still allows taking
+    return doseLog.status === 'taken' && !!doseLog.actionTime && isToday(new Date(doseLog.actionTime));
+  };
+
+  // Sort: pending/upcoming by next intake time first, completed today at the bottom
   const sortedMeds = useMemo(() => {
     return [...activeMeds].sort((a, b) => {
+      const aCompleted = isMedCompletedToday(a.id);
+      const bCompleted = isMedCompletedToday(b.id);
+
+      // Pending/upcoming meds before completed ones
+      if (aCompleted !== bCompleted) {
+        return aCompleted ? 1 : -1;
+      }
+
+      // Within same group, sort by next intake time (soonest first)
       const timeA = getNextIntakeTime(medicationSchedules[a.id]);
       const timeB = getNextIntakeTime(medicationSchedules[b.id]);
       return timeA - timeB;
     });
-  }, [activeMeds, medicationSchedules]);
+  }, [activeMeds, medicationSchedules, doseStatuses]);
 
   // Handle take action from UI
   const handleTake = useCallback(async (medId: string, medName: string) => {
@@ -261,13 +307,16 @@ export function HomeScreen() {
           sortedMeds.map((med) => {
             const times = formatScheduleTimes(medicationSchedules[med.id]);
             const statusDisplay = getStatusDisplay(med.id);
-            const doseStatus = doseStatuses[med.id]?.status;
+            const doseLog = doseStatuses[med.id];
+            const doseStatus = doseLog?.status;
             const isTaken = doseStatus === 'taken';
             const isSkipped = doseStatus === 'skipped';
+            // Only show as completed (darker) if taken today; skipped still allows taking
+            const isCompletedToday = isTaken && !!doseLog?.actionTime && isToday(new Date(doseLog.actionTime));
             return (
               <Card
                 key={med.id}
-                style={styles.medicationCard}
+                style={[styles.medicationCard, isCompletedToday && styles.completedCard]}
                 onPress={() =>
                   navigation.navigate('MedicationDetail', { medicationId: med.id })
                 }
@@ -302,7 +351,7 @@ export function HomeScreen() {
                     Low stock: {med.stockCount} remaining
                   </Body>
                 )}
-                {!isTaken && (
+                {!isCompletedToday && (
                   <View style={styles.cardActions}>
                     {!isSkipped && (
                       <Button
@@ -355,6 +404,10 @@ const styles = StyleSheet.create({
   },
   medicationCard: {
     marginBottom: spacing.sm,
+  },
+  completedCard: {
+    backgroundColor: colors.gray[200],
+    opacity: 0.85,
   },
   medicationHeader: {
     flexDirection: 'row',

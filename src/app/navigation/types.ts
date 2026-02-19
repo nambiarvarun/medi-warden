@@ -18,6 +18,7 @@ export type MainTabParamList = {
   History: undefined;
   Profiles: undefined;
   Settings: undefined;
+  Schedules: undefined;
 };
 
 // Screen props types

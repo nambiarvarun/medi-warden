@@ -12,7 +12,6 @@ import {
   setHours,
   setMinutes,
   isBefore,
-  isAfter,
   getDay,
 } from 'date-fns';
 
@@ -178,7 +177,8 @@ export function getScheduledTimesInRange(
     if (includeDay) {
       for (const timeStr of timesOfDay) {
         const scheduledTime = createDateFromTime(timeStr, currentDate);
-        if (isAfter(scheduledTime, startDate) && isBefore(scheduledTime, rangeEnd)) {
+        // Use >= for start (include current moment) and <= for end (include end of range)
+        if (scheduledTime.getTime() >= startDate.getTime() && scheduledTime.getTime() <= rangeEnd.getTime()) {
           times.push(scheduledTime);
         }
       }

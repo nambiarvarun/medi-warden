@@ -11,6 +11,7 @@ interface ProfileState {
   updateProfile: (id: string, data: Partial<Omit<Profile, 'id' | 'createdAt'>>) => Promise<void>;
   deleteProfile: (id: string) => Promise<void>;
   getProfileById: (id: string) => Profile | undefined;
+  reset: () => void;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
@@ -73,5 +74,9 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
 
   getProfileById: (id) => {
     return get().profiles.find((p) => p.id === id);
+  },
+
+  reset: () => {
+    set({ profiles: [], isLoading: false, error: null });
   },
 }));

@@ -11,6 +11,7 @@ import { MedicationListScreen } from '../../screens/medications/MedicationListSc
 import { HistoryScreen } from '../../screens/history/HistoryScreen';
 import { ProfilesScreen } from '../../screens/profiles/ProfilesScreen';
 import { SettingsScreen } from '../../screens/settings/SettingsScreen';
+import { SchedulesScreen } from '../../screens/schedules/SchedulesScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -83,6 +84,16 @@ export function MainTabs() {
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="cog" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Schedules"
+        component={SchedulesScreen}
+        options={{
+          tabBarLabel: 'Schedules',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="calendar-clock" color={color} size={size} />
           ),
         }}
       />

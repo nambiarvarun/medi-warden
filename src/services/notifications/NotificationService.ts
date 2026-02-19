@@ -4,7 +4,9 @@ import notifee, {
   AndroidVisibility,
   TriggerType,
   TimestampTrigger,
+  AlarmType,
   AuthorizationStatus,
+  AndroidNotificationSetting,
   EventType,
   Event,
 } from '@notifee/react-native';
@@ -55,10 +57,74 @@ export async function initializeNotifications(): Promise<void> {
  */
 export async function requestPermissions(): Promise<boolean> {
   const settings = await notifee.requestPermission();
-  return (
+  const hasNotificationPermission =
     settings.authorizationStatus === AuthorizationStatus.AUTHORIZED ||
-    settings.authorizationStatus === AuthorizationStatus.PROVISIONAL
-  );
+    settings.authorizationStatus === AuthorizationStatus.PROVISIONAL;
+
+  return hasNotificationPermission;
+}
+
+/**
+ * Check if exact alarm permission is granted (Android 12+)
+ */
+export async function isExactAlarmPermissionGranted(): Promise<boolean> {
+  try {
+    const settings = await notifee.getNotificationSettings();
+    return settings.android.alarm === AndroidNotificationSetting.ENABLED;
+  } catch (error) {
+    console.log('[Permissions] Could not check alarm permission:', error);
+    return false;
+  }
+}
+
+/**
+ * Open exact alarm permission settings (Android 12+)
+ */
+export async function openAlarmPermissionSettings(): Promise<void> {
+  await notifee.openAlarmPermissionSettings();
+}
+
+/**
+ * Check if battery optimization is disabled (i.e. app is whitelisted)
+ */
+export async function isBatteryOptimizationDisabled(): Promise<boolean> {
+  try {
+    const batteryOptimizationEnabled = await notifee.isBatteryOptimizationEnabled();
+    return !batteryOptimizationEnabled; // returns true if optimized (bad for us)
+  } catch (error) {
+    console.log('[Permissions] Could not check battery optimization:', error);
+    return true; // assume OK on failure
+  }
+}
+
+/**
+ * Open battery optimization settings
+ */
+export async function openBatteryOptimizationSettings(): Promise<void> {
+  await notifee.openBatteryOptimizationSettings();
+}
+
+/**
+ * Get a summary of notification-related permission states
+ */
+export async function getNotificationPermissionStatus(): Promise<{
+  notifications: boolean;
+  exactAlarm: boolean;
+  batteryOptimized: boolean;
+}> {
+  const notifSettings = await notifee.requestPermission();
+  const notifications =
+    notifSettings.authorizationStatus === AuthorizationStatus.AUTHORIZED ||
+    notifSettings.authorizationStatus === AuthorizationStatus.PROVISIONAL;
+
+  const exactAlarm = await isExactAlarmPermissionGranted();
+  const batteryOptDisabled = await isBatteryOptimizationDisabled();
+
+  return {
+    notifications,
+    exactAlarm,
+    batteryOptimized: !batteryOptDisabled, // true = battery is being optimized (bad)
+  };
 }
 
 /**
@@ -68,103 +134,108 @@ export async function scheduleReminder(
   data: NotificationData,
   isStrict: boolean
 ): Promise<string> {
-  const trigger: TimestampTrigger = {
-    type: TriggerType.TIMESTAMP,
-    timestamp: data.scheduledTime,
-    alarmManager: {
-      allowWhileIdle: true,
-      type: 0, // EXACT alarm type for reliable timing
-    },
-  };
-
   const notificationId = `reminder-${data.scheduleId}-${data.scheduledTime}`;
 
-  if (isStrict) {
-    // Full-screen alarm for strict mode
-    await notifee.createTriggerNotification(
-      {
-        id: notificationId,
-        title: 'Time to take your medication',
-        body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
-        android: {
-          channelId: NOTIFICATION_CHANNEL.ALARM,
-          category: AndroidCategory.ALARM,
-          importance: AndroidImportance.HIGH,
-          visibility: AndroidVisibility.PUBLIC,
-          fullScreenAction: {
-            id: 'default',
-          },
-          pressAction: {
-            id: 'default',
-          },
-          actions: [
-            {
-              title: 'Take',
-              pressAction: { id: 'take' },
-            },
-            {
-              title: 'Skip',
-              pressAction: { id: 'skip' },
-            },
-            {
-              title: 'Snooze',
-              pressAction: { id: 'snooze' },
-            },
-          ],
-        },
-        data: {
-          medicationId: data.medicationId,
-          scheduleId: data.scheduleId,
-          scheduledTime: data.scheduledTime.toString(),
-          medicationName: data.medicationName,
-          dosage: data.dosage,
-          type: 'reminder',
-        },
+  try {
+    const trigger: TimestampTrigger = {
+      type: TriggerType.TIMESTAMP,
+      timestamp: data.scheduledTime,
+      alarmManager: {
+        type: AlarmType.SET_ALARM_CLOCK,
+        allowWhileIdle: true,
       },
-      trigger
-    );
-  } else {
-    // Standard notification for relaxed mode
-    await notifee.createTriggerNotification(
-      {
-        id: notificationId,
-        title: 'Medication Reminder',
-        body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
-        android: {
-          channelId: NOTIFICATION_CHANNEL.REMINDER,
-          importance: AndroidImportance.HIGH,
-          pressAction: {
-            id: 'default',
-          },
-          actions: [
-            {
-              title: 'Take',
-              pressAction: { id: 'take' },
-            },
-            {
-              title: 'Skip',
-              pressAction: { id: 'skip' },
-            },
-            {
-              title: 'Snooze',
-              pressAction: { id: 'snooze' },
-            },
-          ],
-        },
-        data: {
-          medicationId: data.medicationId,
-          scheduleId: data.scheduleId,
-          scheduledTime: data.scheduledTime.toString(),
-          medicationName: data.medicationName,
-          dosage: data.dosage,
-          type: 'reminder',
-        },
-      },
-      trigger
-    );
-  }
+    };
 
-  return notificationId;
+    if (isStrict) {
+      // Full-screen alarm for strict mode
+      await notifee.createTriggerNotification(
+        {
+          id: notificationId,
+          title: 'Medication Reminder',
+          body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
+          android: {
+            channelId: NOTIFICATION_CHANNEL.ALARM,
+            category: AndroidCategory.ALARM,
+            importance: AndroidImportance.HIGH,
+            visibility: AndroidVisibility.PUBLIC,
+            fullScreenAction: {
+              id: 'default',
+            },
+            pressAction: {
+              id: 'default',
+            },
+            actions: [
+              {
+                title: 'Take',
+                pressAction: { id: 'take' },
+              },
+              {
+                title: 'Skip',
+                pressAction: { id: 'skip' },
+              },
+              {
+                title: 'Snooze',
+                pressAction: { id: 'snooze' },
+              },
+            ],
+          },
+          data: {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+            scheduledTime: data.scheduledTime.toString(),
+            medicationName: data.medicationName,
+            dosage: data.dosage,
+            type: 'reminder',
+          },
+        },
+        trigger
+      );
+    } else {
+      // Standard notification for relaxed mode
+      await notifee.createTriggerNotification(
+        {
+          id: notificationId,
+          title: 'Medication Reminder',
+          body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
+          android: {
+            channelId: NOTIFICATION_CHANNEL.REMINDER,
+            importance: AndroidImportance.HIGH,
+            pressAction: {
+              id: 'default',
+            },
+            actions: [
+              {
+                title: 'Take',
+                pressAction: { id: 'take' },
+              },
+              {
+                title: 'Skip',
+                pressAction: { id: 'skip' },
+              },
+              {
+                title: 'Snooze',
+                pressAction: { id: 'snooze' },
+              },
+            ],
+          },
+          data: {
+            medicationId: data.medicationId,
+            scheduleId: data.scheduleId,
+            scheduledTime: data.scheduledTime.toString(),
+            medicationName: data.medicationName,
+            dosage: data.dosage,
+            type: 'reminder',
+          },
+        },
+        trigger
+      );
+    }
+
+    return notificationId;
+  } catch (error) {
+    console.error(`[Notification] Failed to schedule reminder ${notificationId}:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -176,6 +247,7 @@ export async function scheduleSnooze(
   isStrict: boolean
 ): Promise<string> {
   const snoozeTime = Date.now() + snoozeDuration * 60 * 1000;
+  console.log(`[Snooze] Scheduling for ${snoozeDuration} minutes`);
   return scheduleReminder({ ...data, scheduledTime: snoozeTime }, isStrict);
 }
 
@@ -212,16 +284,63 @@ export async function cancelNotification(notificationId: string): Promise<void> 
 }
 
 /**
- * Cancel all notifications for a medication
+ * Cancel only future scheduled (trigger) notifications for a medication.
+ * Does NOT cancel displayed notifications — those remain visible so users can act on them.
+ * Used during rescheduling to avoid destroying already-fired notifications.
+ */
+export async function cancelScheduledTriggers(
+  medicationId: string
+): Promise<void> {
+  try {
+    const triggerNotifications = await notifee.getTriggerNotifications();
+    let cancelled = 0;
+    for (const notification of triggerNotifications) {
+      if (notification.notification.data?.medicationId === medicationId) {
+        await notifee.cancelNotification(notification.notification.id!);
+        cancelled++;
+      }
+    }
+    if (cancelled > 0) {
+      console.log(`[Notification] Cancelled ${cancelled} scheduled triggers for ${medicationId}`);
+    }
+  } catch (error) {
+    console.error(`[Notification] Error cancelling triggers for ${medicationId}:`, error);
+  }
+}
+
+/**
+ * Cancel ALL notifications for a medication — both scheduled triggers AND displayed.
+ * Use this only for full cleanup: deactivation, deletion, or inactive med cleanup.
  */
 export async function cancelMedicationNotifications(
   medicationId: string
 ): Promise<void> {
-  const notifications = await notifee.getTriggerNotifications();
-  for (const notification of notifications) {
-    if (notification.notification.data?.medicationId === medicationId) {
-      await notifee.cancelNotification(notification.notification.id!);
+  console.log(`[Notification] Full cancel for medication: ${medicationId}`);
+
+  try {
+    // Cancel scheduled (trigger) notifications
+    const triggerNotifications = await notifee.getTriggerNotifications();
+    let cancelledTriggers = 0;
+    for (const notification of triggerNotifications) {
+      if (notification.notification.data?.medicationId === medicationId) {
+        await notifee.cancelNotification(notification.notification.id!);
+        cancelledTriggers++;
+      }
     }
+
+    // Cancel displayed notifications (already fired but still showing)
+    const displayedNotifications = await notifee.getDisplayedNotifications();
+    let cancelledDisplayed = 0;
+    for (const notification of displayedNotifications) {
+      if (notification.notification.data?.medicationId === medicationId) {
+        await notifee.cancelNotification(notification.notification.id!);
+        cancelledDisplayed++;
+      }
+    }
+
+    console.log(`[Notification] Cancelled ${cancelledTriggers} triggers + ${cancelledDisplayed} displayed for ${medicationId}`);
+  } catch (error) {
+    console.error(`[Notification] Error cancelling notifications for ${medicationId}:`, error);
   }
 }
 

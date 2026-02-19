@@ -83,8 +83,8 @@ android {
         applicationId "com.lynxtech.mediwarden"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "5.0"
+        versionCode 16
+        versionName "1.15.T1"
     }
     signingConfigs {
         debug {
@@ -123,6 +123,15 @@ android {
 			  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 		  }
 	  }
+
+    // Custom APK naming: medi-warden-{versionName}.apk
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            def appName = "medi-warden"
+            def versionName = variant.versionName
+            outputFileName = "${appName}-${versionName}.apk"
+        }
+    }
 }
 
 dependencies {

@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Alert, Platform } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   ScreenWrapper,
   Heading,
@@ -8,9 +9,17 @@ import {
   Button,
 } from '../../components/common';
 import { colors, spacing } from '../../theme';
-import { useSettingsStore } from '../../store';
+import { useSettingsStore, useMedicationStore, useProfileStore } from '../../store';
 import { ReminderMode, SnoozeDuration } from '../../types';
 import { SNOOZE_OPTIONS } from '../../utils/constants';
+import {
+  getNotificationPermissionStatus,
+  openAlarmPermissionSettings,
+  openBatteryOptimizationSettings,
+  cancelAllNotifications,
+} from '../../services/notifications/NotificationService';
+import { resetAllData, resetDoseHistory } from '../../services/database';
+import { scheduleAllReminders } from '../../services/scheduler/ReminderScheduler';
 
 export function SettingsScreen() {
   const {
@@ -21,6 +30,23 @@ export function SettingsScreen() {
     setSnoozeDuration,
     setSecurityEnabled,
   } = useSettingsStore();
+
+  const navigation = useNavigation();
+
+  const [permissionStatus, setPermissionStatus] = useState<{
+    notifications: boolean;
+    exactAlarm: boolean;
+    batteryOptimized: boolean;
+  } | null>(null);
+
+  // Refresh permission status when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === 'android') {
+        getNotificationPermissionStatus().then(setPermissionStatus);
+      }
+    }, [])
+  );
 
   const handleReminderModeChange = (mode: ReminderMode) => {
     setReminderMode(mode);
@@ -46,6 +72,104 @@ export function SettingsScreen() {
     } else {
       setSecurityEnabled(false);
     }
+  };
+
+  const handleResetSchedules = () => {
+    Alert.alert(
+      'Reset Schedules',
+      'This will cancel all scheduled notifications. They will be rescheduled when you reopen the app.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await cancelAllNotifications();
+            Alert.alert('Done', 'All scheduled notifications have been cancelled.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRecreateSchedules = () => {
+    Alert.alert(
+      'Recreate Schedules',
+      'This will cancel all scheduled notifications and recreate them from scratch. Use this if reminders seem out of sync.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Recreate',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelAllNotifications();
+              const { activeProfileId, reminderMode } = useSettingsStore.getState();
+              if (activeProfileId) {
+                await scheduleAllReminders(activeProfileId, reminderMode === 'strict');
+              }
+              Alert.alert('Done', 'All schedules have been recreated.');
+            } catch (error) {
+              console.error('[Settings] Recreate schedules failed:', error);
+              Alert.alert('Error', 'Failed to recreate schedules. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetHistory = () => {
+    Alert.alert(
+      'Reset History',
+      'This will permanently delete all dose history (taken, skipped, missed records). Your medications and schedules will not be affected. This cannot be undone!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete History',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await resetDoseHistory();
+              Alert.alert('Done', 'All dose history has been cleared.');
+            } catch (error) {
+              console.error('[Settings] Reset history failed:', error);
+              Alert.alert('Error', 'Failed to reset history. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetAll = () => {
+    Alert.alert(
+      'Reset All Data',
+      'This will permanently delete ALL medications, profiles, dose history, and settings. The app will restart as if freshly installed. This cannot be undone!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelAllNotifications();
+              await resetAllData();
+              useSettingsStore.getState().reset();
+              useMedicationStore.getState().reset();
+              useProfileStore.getState().reset();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Onboarding' }],
+              });
+            } catch (error) {
+              console.error('[Settings] Reset all failed:', error);
+              Alert.alert('Error', 'Failed to reset data. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -126,10 +250,127 @@ export function SettingsScreen() {
         </View>
       </Card>
 
+      {Platform.OS === 'android' && permissionStatus && (
+        <Card variant="outlined" style={styles.section}>
+          <Body variant="titleSmall" style={styles.sectionTitle}>
+            Notification Reliability
+          </Body>
+          <Body variant="bodySmall" color={colors.text.secondary} style={styles.description}>
+            For reliable medication reminders, these permissions should be enabled
+          </Body>
+
+          <View style={styles.permissionRow}>
+            <View style={styles.permissionInfo}>
+              <Body variant="bodyMedium">Notifications</Body>
+              <Body variant="bodySmall" color={colors.text.secondary}>
+                Required to show reminders
+              </Body>
+            </View>
+            <Body
+              variant="labelMedium"
+              color={permissionStatus.notifications ? colors.success : colors.error}
+            >
+              {permissionStatus.notifications ? 'Enabled' : 'Disabled'}
+            </Body>
+          </View>
+
+          <View style={styles.permissionRow}>
+            <View style={styles.permissionInfo}>
+              <Body variant="bodyMedium">Exact Alarms</Body>
+              <Body variant="bodySmall" color={colors.text.secondary}>
+                Ensures reminders fire at the exact scheduled time
+              </Body>
+            </View>
+            {permissionStatus.exactAlarm ? (
+              <Body variant="labelMedium" color={colors.success}>Enabled</Body>
+            ) : (
+              <Button
+                title="Enable"
+                variant="outline"
+                size="small"
+                onPress={() => {
+                  openAlarmPermissionSettings();
+                }}
+              />
+            )}
+          </View>
+
+          <View style={styles.permissionRow}>
+            <View style={styles.permissionInfo}>
+              <Body variant="bodyMedium">Battery Optimization</Body>
+              <Body variant="bodySmall" color={colors.text.secondary}>
+                Disable to prevent Android from killing reminders
+              </Body>
+            </View>
+            {!permissionStatus.batteryOptimized ? (
+              <Body variant="labelMedium" color={colors.success}>Unrestricted</Body>
+            ) : (
+              <Button
+                title="Fix"
+                variant="outline"
+                size="small"
+                onPress={() => {
+                  Alert.alert(
+                    'Disable Battery Optimization',
+                    'On the next screen, find Medi-Warden and select "Don\'t optimize" or "Unrestricted" to ensure reminders work reliably.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Open Settings',
+                        onPress: () => openBatteryOptimizationSettings(),
+                      },
+                    ]
+                  );
+                }}
+              />
+            )}
+          </View>
+        </Card>
+      )}
+
+      <Card variant="outlined" style={styles.section}>
+        <Body variant="titleSmall" style={styles.sectionTitle}>
+          Reset Options
+        </Body>
+        <Body variant="bodySmall" color={colors.text.secondary} style={styles.description}>
+          Reset or recreate app data when things seem out of sync
+        </Body>
+        <View style={styles.resetButtonsColumn}>
+          <View style={styles.resetButtonsRow}>
+            <Button
+              title="Reset Schedules"
+              variant="outline"
+              onPress={handleResetSchedules}
+              style={styles.resetButton}
+            />
+            <Button
+              title="Recreate Schedules"
+              variant="outline"
+              onPress={handleRecreateSchedules}
+              style={styles.resetButton}
+            />
+          </View>
+          <View style={styles.resetButtonsRow}>
+            <Button
+              title="Reset History"
+              variant="outline"
+              onPress={handleResetHistory}
+              style={styles.resetButton}
+            />
+            <Button
+              title="Reset All"
+              variant="primary"
+              onPress={handleResetAll}
+              style={{ ...styles.resetButton, ...styles.resetAllButton }}
+            />
+          </View>
+        </View>
+      </Card>
+
       <Card variant="filled" style={styles.infoCard}>
         <Body variant="titleSmall">About Medi-Warden</Body>
         <Body variant="bodySmall" color={colors.text.secondary}>
-          Version 1.0.0
+          Version 1.14.T2
         </Body>
         <Body variant="bodySmall" color={colors.text.secondary}>
           Your personal medication reminder assistant
@@ -190,6 +431,29 @@ const styles = StyleSheet.create({
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
+  },
+  permissionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray[100],
+  },
+  permissionInfo: {
+    flex: 1,
+  },
+  resetButtonsColumn: {
+    gap: spacing.sm,
+  },
+  resetButtonsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  resetButton: {
+    flex: 1,
+  },
+  resetAllButton: {
+    backgroundColor: colors.error,
   },
   infoCard: {
     marginTop: spacing.xl,

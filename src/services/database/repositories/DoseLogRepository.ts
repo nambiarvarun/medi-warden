@@ -120,6 +120,27 @@ export const DoseLogRepository = {
   },
 
   /**
+   * Get skipped dose for a schedule within a time range (for undo-skip + take)
+   */
+  async getSkippedForSchedule(
+    scheduleId: string,
+    startTime: number,
+    endTime: number
+  ): Promise<DoseLog | null> {
+    const rows = await query<DoseLogRow>(
+      `SELECT * FROM dose_logs
+       WHERE schedule_id = ?
+       AND scheduled_time >= ?
+       AND scheduled_time <= ?
+       AND status = 'skipped'
+       ORDER BY scheduled_time ASC
+       LIMIT 1`,
+      [scheduleId, startTime, endTime]
+    );
+    return rows.length > 0 ? mapRowToDoseLog(rows[0]) : null;
+  },
+
+  /**
    * Create a new dose log
    */
   async create(data: Omit<DoseLog, 'id'>): Promise<DoseLog> {
