@@ -152,7 +152,7 @@ export async function scheduleReminder(
         {
           id: notificationId,
           title: 'Medication Reminder',
-          body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
+          body: data.medicationName,
           android: {
             channelId: NOTIFICATION_CHANNEL.ALARM,
             category: AndroidCategory.ALARM,
@@ -196,7 +196,7 @@ export async function scheduleReminder(
         {
           id: notificationId,
           title: 'Medication Reminder',
-          body: `${data.medicationName}${data.dosage ? ` - ${data.dosage}` : ''}`,
+          body: data.medicationName,
           android: {
             channelId: NOTIFICATION_CHANNEL.REMINDER,
             importance: AndroidImportance.HIGH,
