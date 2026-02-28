@@ -92,7 +92,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
         reminderMode === 'strict'
       );
 
-      console.log(`[Store] Medication ${medication.name} created, ${scheduledCount} notifications scheduled`);
+      if (__DEV__) console.log(`[Store] Medication ${medication.name} created, ${scheduledCount} notifications scheduled`);
 
       return medication;
     } catch (error) {
@@ -173,7 +173,7 @@ export const useMedicationStore = create<MedicationState>((set, get) => ({
           reminderMode === 'strict'
         );
 
-        console.log(`[Store] Medication ${updatedMedication.name} updated, ${scheduledCount} notifications scheduled`);
+        if (__DEV__) console.log(`[Store] Medication ${updatedMedication.name} updated, ${scheduledCount} notifications scheduled`);
       }
     } catch (error) {
       console.error('Failed to update medication with schedules:', error);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -25,7 +25,7 @@ export function MedicationListScreen() {
     }
   }, [activeProfileId]);
 
-  const renderMedication = ({ item }: { item: Medication }) => (
+  const renderMedication = useCallback(({ item }: { item: Medication }) => (
     <Card
       style={styles.card}
       onPress={() =>
@@ -68,7 +68,7 @@ export function MedicationListScreen() {
         </Body>
       )}
     </Card>
-  );
+  ), [navigation]);
 
   if (!activeProfileId) {
     return (
@@ -103,6 +103,9 @@ export function MedicationListScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
       )}
 

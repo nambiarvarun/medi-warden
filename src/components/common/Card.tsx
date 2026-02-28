@@ -15,7 +15,7 @@ interface CardProps {
   variant?: 'elevated' | 'outlined' | 'filled';
 }
 
-export function Card({
+export const Card = React.memo(function Card({
   children,
   style,
   onPress,
@@ -40,7 +40,7 @@ export function Card({
   }
 
   return <View style={cardStyle}>{children}</View>;
-}
+});
 
 const styles = StyleSheet.create({
   base: {

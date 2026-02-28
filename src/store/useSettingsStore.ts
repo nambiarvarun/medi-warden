@@ -43,7 +43,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (previousMode !== mode) {
       const { activeProfileId } = get();
       if (activeProfileId) {
-        console.log(`[SettingsStore] Reminder mode changed ${previousMode} → ${mode}, rescheduling all`);
+        if (__DEV__) console.log(`[SettingsStore] Reminder mode changed ${previousMode} → ${mode}, rescheduling all`);
         await scheduleAllReminders(activeProfileId, mode === 'strict');
       }
     }
@@ -67,7 +67,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     // Handle profile switch: cancel old profile's notifications, schedule new
     if (previousProfileId !== profileId && profileId) {
       const { reminderMode } = get();
-      console.log(`[SettingsStore] Profile switched ${previousProfileId} → ${profileId}, rescheduling`);
+      if (__DEV__) console.log(`[SettingsStore] Profile switched ${previousProfileId} → ${profileId}, rescheduling`);
       await handleProfileSwitch(previousProfileId, profileId, reminderMode === 'strict');
     }
   },

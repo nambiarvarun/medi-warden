@@ -19,7 +19,7 @@ interface ScreenWrapperProps {
   avoidBottomInset?: boolean;
 }
 
-export function ScreenWrapper({
+export const ScreenWrapper = React.memo(function ScreenWrapper({
   children,
   style,
   scrollable = true,
@@ -85,7 +85,7 @@ export function ScreenWrapper({
       {scrollContent}
     </>
   );
-}
+});
 
 const styles = StyleSheet.create({
   safeArea: {

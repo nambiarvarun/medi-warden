@@ -83,7 +83,7 @@ export function HistoryScreen() {
     }, [activeProfileId]) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'taken':
         return colors.success;
@@ -94,13 +94,13 @@ export function HistoryScreen() {
       default:
         return colors.gray[500];
     }
-  };
+  }, []);
 
-  const getMedicationById = (id: string) => {
+  const getMedicationById = useCallback((id: string) => {
     return medications.find(m => m.id === id);
-  };
+  }, [medications]);
 
-  const renderMedicationStats = ({ item }: { item: MedicationAdherence }) => {
+  const renderMedicationStats = useCallback(({ item }: { item: MedicationAdherence }) => {
     const { medication, stats } = item;
 
     return (
@@ -159,9 +159,9 @@ export function HistoryScreen() {
         </View>
       </Card>
     );
-  };
+  }, []);
 
-  const renderLog = ({ item }: { item: DoseLog }) => {
+  const renderLog = useCallback(({ item }: { item: DoseLog }) => {
     const medication = getMedicationById(item.medicationId);
 
     return (
@@ -191,7 +191,7 @@ export function HistoryScreen() {
         </View>
       </Card>
     );
-  };
+  }, [getMedicationById, getStatusColor]);
 
   const renderActivityTab = () => (
     <View style={styles.tabContent}>
@@ -207,6 +207,9 @@ export function HistoryScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={10}
         />
       )}
     </View>
@@ -226,6 +229,9 @@ export function HistoryScreen() {
           keyExtractor={(item) => item.medication.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
       )}
     </View>

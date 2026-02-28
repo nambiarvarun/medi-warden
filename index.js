@@ -54,7 +54,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
           const snoozeDuration = settings.snoozeDuration || 15;
           const isStrict = settings.reminderMode === 'strict';
 
-          console.log('[Snooze] Scheduling snooze notification for', snoozeDuration, 'minutes');
+          if (__DEV__) console.log('[Snooze] Scheduling snooze notification for', snoozeDuration, 'minutes');
 
           await handleSnoozeAction(
             {
@@ -69,14 +69,14 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
             isStrict
           );
 
-          console.log('[Snooze] Snooze notification scheduled successfully');
+          if (__DEV__) console.log('[Snooze] Snooze notification scheduled successfully');
           await notifee.cancelNotification(notification.id);
         }
         break;
 
       case EventType.DISMISSED:
         // Notification was dismissed without action
-        console.log('Notification dismissed', notification.id);
+        if (__DEV__) console.log('Notification dismissed', notification.id);
         break;
     }
   } catch (error) {
@@ -91,8 +91,8 @@ try {
   const BackgroundFetch = require('react-native-background-fetch').default;
   const { backgroundFetchHeadlessTask } = require('./src/services/background');
   BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
-  console.log('[BackgroundFetch] Headless task registered');
+  if (__DEV__) console.log('[BackgroundFetch] Headless task registered');
 } catch (error) {
   // Background fetch not installed - this is okay, we have fallback mechanisms
-  console.log('[BackgroundFetch] Library not available, skipping headless registration');
+  if (__DEV__) console.log('[BackgroundFetch] Library not available, skipping headless registration');
 }
