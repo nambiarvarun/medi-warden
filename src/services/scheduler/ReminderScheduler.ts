@@ -1,6 +1,7 @@
 import {
   scheduleReminder,
   cancelMedicationNotifications,
+  cancelNotification,
   cancelScheduledTriggers,
   NotificationData,
   showRefillReminder,
@@ -387,6 +388,9 @@ export async function handleTakeAction(
     });
   }
 
+  // Cancel the scheduled notification for this specific dose time (if still pending)
+  await cancelNotification(`reminder-${scheduleId}-${scheduledTime}`);
+
   // Get medication to check if stock is indefinite
   const medication = await MedicationRepository.getById(medicationId);
 
@@ -535,6 +539,9 @@ export async function handleSkipAction(
       snoozedUntil: null,
     });
   }
+
+  // Cancel the scheduled notification for this specific dose time (if still pending)
+  await cancelNotification(`reminder-${scheduleId}-${scheduledTime}`);
 
   // Top up notifications to ensure 14 days of coverage
   try {
