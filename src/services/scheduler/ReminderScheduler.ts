@@ -21,6 +21,9 @@ import {
 import { isScheduleActiveOnDate } from '../../utils/scheduleUtils';
 import { AUTO_MISS_TIMEOUT } from '../../utils/constants';
 
+// Dev-only logger — no-op in production builds
+const log = (...args: unknown[]) => { if (__DEV__) { console.log(...args); } };
+
 /**
  * Schedule all upcoming reminders for a medication
  * Returns the number of notifications scheduled
@@ -31,17 +34,17 @@ export async function scheduleMedicationReminders(
   isStrictMode: boolean,
   daysAhead: number = 7
 ): Promise<number> {
-  console.log(`[Scheduler] scheduleMedicationReminders called for ${medication.name} (id: ${medication.id}, active: ${medication.isActive})`);
+  log(`[Scheduler] scheduleMedicationReminders called for ${medication.name} (id: ${medication.id}, active: ${medication.isActive})`);
 
   try {
     // Cancel only future scheduled (trigger) notifications — NOT displayed ones.
     // Displayed notifications (already fired) must remain visible for the user to act on.
     await cancelScheduledTriggers(medication.id);
-    console.log(`[Scheduler] Cancelled future triggers for ${medication.name}`);
+    log(`[Scheduler] Cancelled future triggers for ${medication.name}`);
 
     // Skip if medication is inactive
     if (!medication.isActive) {
-      console.log(`[Scheduler] Medication ${medication.name} is inactive, skipping scheduling`);
+      log(`[Scheduler] Medication ${medication.name} is inactive, skipping scheduling`);
       return 0;
     }
 
@@ -52,18 +55,18 @@ export async function scheduleMedicationReminders(
     const todayStartMs = todayStart.getTime();
     const endDate = new Date(nowMs + daysAhead * 24 * 60 * 60 * 1000);
 
-    console.log(`[Scheduler] Scheduling for ${medication.name} from ${now.toLocaleString()} to ${endDate.toLocaleString()} (${daysAhead} days)`);
-    console.log(`[Scheduler] Number of schedules: ${schedules.length}`);
+    log(`[Scheduler] Scheduling for ${medication.name} from ${now.toLocaleString()} to ${endDate.toLocaleString()} (${daysAhead} days)`);
+    log(`[Scheduler] Number of schedules: ${schedules.length}`);
 
     let notificationsScheduled = 0;
 
     for (const schedule of schedules) {
       if (!schedule.isActive) {
-        console.log(`[Scheduler] Schedule ${schedule.id} is inactive, skipping`);
+        log(`[Scheduler] Schedule ${schedule.id} is inactive, skipping`);
         continue;
       }
       if (!isScheduleActiveOnDate(schedule, now)) {
-        console.log(`[Scheduler] Schedule ${schedule.id} is not active on current date, skipping`);
+        log(`[Scheduler] Schedule ${schedule.id} is not active on current date, skipping`);
         continue;
       }
 
@@ -81,7 +84,7 @@ export async function scheduleMedicationReminders(
         }
       );
 
-      console.log(`[Scheduler] Found ${scheduledTimes.length} scheduled times for schedule ${schedule.id}`);
+      log(`[Scheduler] Found ${scheduledTimes.length} scheduled times for schedule ${schedule.id}`);
 
       for (const scheduledTime of scheduledTimes) {
         const scheduledTimeMs = scheduledTime.getTime();
@@ -103,7 +106,7 @@ export async function scheduleMedicationReminders(
               status: 'pending',
               snoozedUntil: null,
             });
-            console.log(`[Scheduler] Created dose log for ${medication.name} at ${scheduledTime.toLocaleString()}${isPastTime ? ' (overdue)' : ''}`);
+            log(`[Scheduler] Created dose log for ${medication.name} at ${scheduledTime.toLocaleString()}${isPastTime ? ' (overdue)' : ''}`);
           }
         }
 
@@ -124,14 +127,14 @@ export async function scheduleMedicationReminders(
         try {
           await scheduleReminder(notificationData, isStrictMode);
           notificationsScheduled++;
-          console.log(`[Scheduler] Scheduled notification for ${medication.name} at ${scheduledTime.toLocaleString()}`);
+          log(`[Scheduler] Scheduled notification for ${medication.name} at ${scheduledTime.toLocaleString()}`);
         } catch (error) {
           console.error(`[Scheduler] Failed to schedule notification for ${medication.name} at ${scheduledTime.toLocaleString()}:`, error);
         }
       }
     }
 
-    console.log(`[Scheduler] Total notifications scheduled for ${medication.name}: ${notificationsScheduled}`);
+    log(`[Scheduler] Total notifications scheduled for ${medication.name}: ${notificationsScheduled}`);
     return notificationsScheduled;
   } catch (error) {
     console.error(`[Scheduler] Error in scheduleMedicationReminders for ${medication.name}:`, error);
@@ -152,7 +155,7 @@ export async function checkAndTopUpNotifications(
   isStrictMode: boolean,
   requiredDaysAhead: number = 14
 ): Promise<void> {
-  console.log(`[TopUp] Checking notification coverage for medication: ${medicationId}`);
+  log(`[TopUp] Checking notification coverage for medication: ${medicationId}`);
 
   try {
     // Get pending notifications for this medication
@@ -162,7 +165,7 @@ export async function checkAndTopUpNotifications(
     );
 
     if (medNotifications.length === 0) {
-      console.log(`[TopUp] No pending notifications found for medication ${medicationId}`);
+      log(`[TopUp] No pending notifications found for medication ${medicationId}`);
       // No notifications at all - schedule full 14 days
       await rescheduleWithDays(medicationId, isStrictMode, requiredDaysAhead);
       return;
@@ -178,14 +181,14 @@ export async function checkAndTopUpNotifications(
     const now = Date.now();
     const daysUntilLatest = (latestTimestamp - now) / (24 * 60 * 60 * 1000);
 
-    console.log(`[TopUp] Latest notification is ${daysUntilLatest.toFixed(1)} days away (need ${requiredDaysAhead})`);
+    log(`[TopUp] Latest notification is ${daysUntilLatest.toFixed(1)} days away (need ${requiredDaysAhead})`);
 
     // If coverage is less than half the required days, top up
     if (daysUntilLatest < requiredDaysAhead / 2) {
-      console.log(`[TopUp] Coverage insufficient, rescheduling for ${requiredDaysAhead} days`);
+      log(`[TopUp] Coverage insufficient, rescheduling for ${requiredDaysAhead} days`);
       await rescheduleWithDays(medicationId, isStrictMode, requiredDaysAhead);
     } else {
-      console.log(`[TopUp] Coverage sufficient, no action needed`);
+      log(`[TopUp] Coverage sufficient, no action needed`);
     }
   } catch (error) {
     console.error(`[TopUp] Error checking notifications for ${medicationId}:`, error);
@@ -202,18 +205,18 @@ async function rescheduleWithDays(
 ): Promise<void> {
   const medication = await MedicationRepository.getById(medicationId);
   if (!medication || !medication.isActive) {
-    console.log(`[TopUp] Medication ${medicationId} not found or inactive, skipping`);
+    log(`[TopUp] Medication ${medicationId} not found or inactive, skipping`);
     return;
   }
 
   const schedules = await ScheduleRepository.getActiveByMedicationId(medicationId);
   if (schedules.length === 0) {
-    console.log(`[TopUp] No active schedules for ${medicationId}, skipping`);
+    log(`[TopUp] No active schedules for ${medicationId}, skipping`);
     return;
   }
 
   const count = await scheduleMedicationReminders(medication, schedules, isStrictMode, daysAhead);
-  console.log(`[TopUp] Rescheduled ${count} notifications for ${medication.name}`);
+  log(`[TopUp] Rescheduled ${count} notifications for ${medication.name}`);
 }
 
 /**
@@ -229,7 +232,7 @@ async function cleanupInactiveNotifications(profileId: string): Promise<void> {
       await cancelMedicationNotifications(med.id);
     }
     if (inactiveMeds.length > 0) {
-      console.log(`[Scheduler] Cleaned up notifications for ${inactiveMeds.length} inactive medications`);
+      log(`[Scheduler] Cleaned up notifications for ${inactiveMeds.length} inactive medications`);
     }
 
     // Orphan cleanup: cancel notifications for medications that no longer exist in this profile
@@ -244,7 +247,7 @@ async function cleanupInactiveNotifications(profileId: string): Promise<void> {
       }
     }
     if (cancelledOrphanIds.size > 0) {
-      console.log(`[Scheduler] Cancelled notifications for ${cancelledOrphanIds.size} orphan medications`);
+      log(`[Scheduler] Cancelled notifications for ${cancelledOrphanIds.size} orphan medications`);
     }
   } catch (error) {
     console.error('[Scheduler] Error in cleanupInactiveNotifications:', error);
@@ -260,12 +263,12 @@ export async function initializeSchedulingOnStartup(
   profileId: string,
   isStrictMode: boolean
 ): Promise<void> {
-  console.log(`[Scheduler] initializeSchedulingOnStartup called for profile: ${profileId}`);
+  log(`[Scheduler] initializeSchedulingOnStartup called for profile: ${profileId}`);
 
   try {
     await cleanupInactiveNotifications(profileId);
     await ensureTodaysDosesScheduled(profileId, isStrictMode);
-    console.log('[Scheduler] Startup initialization completed');
+    log('[Scheduler] Startup initialization completed');
   } catch (error) {
     console.error('[Scheduler] Error in initializeSchedulingOnStartup:', error);
   }
@@ -279,7 +282,7 @@ export async function handleProfileSwitch(
   newProfileId: string,
   isStrictMode: boolean
 ): Promise<void> {
-  console.log(`[Scheduler] handleProfileSwitch: ${oldProfileId} → ${newProfileId}`);
+  log(`[Scheduler] handleProfileSwitch: ${oldProfileId} → ${newProfileId}`);
 
   try {
     // Cancel all notifications for the old profile's medications
@@ -288,7 +291,7 @@ export async function handleProfileSwitch(
       for (const med of oldMeds) {
         await cancelMedicationNotifications(med.id);
       }
-      console.log(`[Scheduler] Cancelled notifications for ${oldMeds.length} medications from old profile`);
+      log(`[Scheduler] Cancelled notifications for ${oldMeds.length} medications from old profile`);
     }
 
     // Schedule notifications for the new profile's active medications
@@ -297,7 +300,7 @@ export async function handleProfileSwitch(
       const schedules = await ScheduleRepository.getActiveByMedicationId(medication.id);
       await scheduleMedicationReminders(medication, schedules, isStrictMode);
     }
-    console.log(`[Scheduler] Scheduled notifications for ${newActiveMeds.length} medications in new profile`);
+    log(`[Scheduler] Scheduled notifications for ${newActiveMeds.length} medications in new profile`);
   } catch (error) {
     console.error('[Scheduler] Error in handleProfileSwitch:', error);
   }
@@ -311,7 +314,7 @@ export async function scheduleAllReminders(
   profileId: string,
   isStrictMode: boolean
 ): Promise<void> {
-  console.log(`[Scheduler] scheduleAllReminders called for profile: ${profileId}, strict mode: ${isStrictMode}`);
+  log(`[Scheduler] scheduleAllReminders called for profile: ${profileId}, strict mode: ${isStrictMode}`);
 
   try {
     // First: clean up notifications for inactive medications
@@ -322,18 +325,18 @@ export async function scheduleAllReminders(
       await cancelMedicationNotifications(med.id);
     }
     if (inactiveMeds.length > 0) {
-      console.log(`[Scheduler] Cleaned up notifications for ${inactiveMeds.length} inactive medications`);
+      log(`[Scheduler] Cleaned up notifications for ${inactiveMeds.length} inactive medications`);
     }
 
     // Then: schedule for active medications
     const activeMeds = allMeds.filter(m => m.isActive);
-    console.log(`[Scheduler] Found ${activeMeds.length} active medications`);
+    log(`[Scheduler] Found ${activeMeds.length} active medications`);
 
     for (const medication of activeMeds) {
       const schedules = await ScheduleRepository.getActiveByMedicationId(
         medication.id
       );
-      console.log(`[Scheduler] Medication ${medication.name} has ${schedules.length} active schedules`);
+      log(`[Scheduler] Medication ${medication.name} has ${schedules.length} active schedules`);
       await scheduleMedicationReminders(medication, schedules, isStrictMode);
     }
 
@@ -350,10 +353,10 @@ export async function scheduleAllReminders(
       }
     }
     if (orphansCancelled > 0) {
-      console.log(`[Scheduler] Cancelled ${orphansCancelled} orphan trigger notifications`);
+      log(`[Scheduler] Cancelled ${orphansCancelled} orphan trigger notifications`);
     }
 
-    console.log('[Scheduler] Finished scheduling all reminders');
+    log('[Scheduler] Finished scheduling all reminders');
   } catch (error) {
     console.error('[Scheduler] Error in scheduleAllReminders:', error);
   }
@@ -561,13 +564,13 @@ export async function handleSnoozeAction(
   snoozeDuration: number,
   isStrictMode: boolean
 ): Promise<void> {
-  console.log(`[handleSnoozeAction] Starting snooze for ${snoozeDuration} minutes, strict=${isStrictMode}`);
+  log(`[handleSnoozeAction] Starting snooze for ${snoozeDuration} minutes, strict=${isStrictMode}`);
 
   try {
     // Verify medication still exists and is active before scheduling snooze
     const medication = await MedicationRepository.getById(data.medicationId);
     if (!medication || !medication.isActive) {
-      console.log(`[handleSnoozeAction] Medication ${data.medicationId} not found or inactive, skipping snooze`);
+      log(`[handleSnoozeAction] Medication ${data.medicationId} not found or inactive, skipping snooze`);
       return;
     }
 
@@ -581,7 +584,7 @@ export async function handleSnoozeAction(
 
     if (doseLog) {
       await DoseLogRepository.updateSnooze(doseLog.id, snoozeTime);
-      console.log(`[handleSnoozeAction] Updated dose log ${doseLog.id} with snooze until ${new Date(snoozeTime).toLocaleString()}`);
+      log(`[handleSnoozeAction] Updated dose log ${doseLog.id} with snooze until ${new Date(snoozeTime).toLocaleString()}`);
     }
 
     // Schedule a new reminder at the exact snooze time
@@ -592,7 +595,7 @@ export async function handleSnoozeAction(
       },
       isStrictMode
     );
-    console.log(`[handleSnoozeAction] Snooze notification scheduled: ${snoozeNotificationId} at ${new Date(snoozeTime).toLocaleString()}`);
+    log(`[handleSnoozeAction] Snooze notification scheduled: ${snoozeNotificationId} at ${new Date(snoozeTime).toLocaleString()}`);
   } catch (error) {
     console.error(`[handleSnoozeAction] Error:`, error);
     throw error;
@@ -624,7 +627,7 @@ export async function ensureTodaysDosesScheduled(
   profileId: string,
   isStrictMode: boolean
 ): Promise<void> {
-  console.log(`[Scheduler] ensureTodaysDosesScheduled called for profile: ${profileId}`);
+  log(`[Scheduler] ensureTodaysDosesScheduled called for profile: ${profileId}`);
 
   try {
     const medications = await MedicationRepository.getActiveByProfileId(profileId);
@@ -680,7 +683,7 @@ export async function ensureTodaysDosesScheduled(
               status: 'pending',
               snoozedUntil: null,
             });
-            console.log(`[Scheduler] Created missing dose log for ${medication.name} at ${scheduledTime.toLocaleTimeString()}`);
+            log(`[Scheduler] Created missing dose log for ${medication.name} at ${scheduledTime.toLocaleTimeString()}`);
           }
 
           // Ensure notification is scheduled
@@ -698,7 +701,7 @@ export async function ensureTodaysDosesScheduled(
             try {
               await scheduleReminder(notificationData, isStrictMode);
               pendingIds.add(notificationId);
-              console.log(`[Scheduler] Scheduled missing notification for ${medication.name} at ${scheduledTime.toLocaleTimeString()}`);
+              log(`[Scheduler] Scheduled missing notification for ${medication.name} at ${scheduledTime.toLocaleTimeString()}`);
             } catch (error) {
               console.error(`[Scheduler] Failed to schedule notification:`, error);
             }
@@ -707,7 +710,7 @@ export async function ensureTodaysDosesScheduled(
       }
     }
 
-    console.log(`[Scheduler] ensureTodaysDosesScheduled completed`);
+    log(`[Scheduler] ensureTodaysDosesScheduled completed`);
   } catch (error) {
     console.error(`[Scheduler] Error in ensureTodaysDosesScheduled:`, error);
   }

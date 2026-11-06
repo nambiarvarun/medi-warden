@@ -85,7 +85,7 @@ export function SchedulesScreen() {
     setRefreshing(false);
   }, [loadNotifications]);
 
-  const formatTime = (timestamp: number) => {
+  const formatTime = useCallback((timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
     const isToday =
@@ -104,9 +104,9 @@ export function SchedulesScreen() {
     if (isToday) return `Today ${timeStr}`;
     if (isTomorrow) return `Tomorrow ${timeStr}`;
     return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
-  };
+  }, []);
 
-  const renderGroup = ({ item }: { item: GroupedNotification }) => (
+  const renderGroup = useCallback(({ item }: { item: GroupedNotification }) => (
     <Card variant="outlined" style={styles.groupCard}>
       <View style={styles.groupHeader}>
         <Body variant="titleSmall">{item.medicationName}</Body>
@@ -125,7 +125,7 @@ export function SchedulesScreen() {
         </View>
       ))}
     </Card>
-  );
+  ), [formatTime]);
 
   return (
     <ScreenWrapper scrollable={false}>
@@ -139,6 +139,9 @@ export function SchedulesScreen() {
         keyExtractor={(item) => item.medicationId}
         renderItem={renderGroup}
         contentContainerStyle={styles.list}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -23,11 +23,11 @@ export function ProfilesScreen() {
     loadProfiles();
   }, []);
 
-  const handleSelectProfile = async (profileId: string) => {
+  const handleSelectProfile = useCallback(async (profileId: string) => {
     await setActiveProfileId(profileId);
-  };
+  }, [setActiveProfileId]);
 
-  const renderProfile = ({ item }: { item: Profile }) => {
+  const renderProfile = useCallback(({ item }: { item: Profile }) => {
     const isActive = item.id === activeProfileId;
 
     return (
@@ -71,7 +71,7 @@ export function ProfilesScreen() {
         </View>
       </Card>
     );
-  };
+  }, [activeProfileId, handleSelectProfile, navigation]);
 
   return (
     <ScreenWrapper scrollable={false} padded={false}>
@@ -98,6 +98,9 @@ export function ProfilesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={10}
         />
       )}
 

@@ -9,7 +9,7 @@ interface LoadingProps {
   style?: ViewStyle;
 }
 
-export function Loading({
+export const Loading = React.memo(function Loading({
   message,
   size = 'large',
   style,
@@ -24,7 +24,7 @@ export function Loading({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

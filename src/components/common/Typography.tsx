@@ -12,7 +12,7 @@ interface TypographyProps {
   numberOfLines?: number;
 }
 
-export function Text({
+export const Text = React.memo(function Text({
   children,
   variant = 'bodyMedium',
   color = colors.text.primary,
@@ -27,10 +27,10 @@ export function Text({
       {children}
     </RNText>
   );
-}
+});
 
 // Convenience components for common text styles
-export function Heading({
+export const Heading = React.memo(function Heading({
   children,
   variant = 'headlineMedium',
   style,
@@ -41,9 +41,9 @@ export function Heading({
       {children}
     </Text>
   );
-}
+});
 
-export function Title({
+export const Title = React.memo(function Title({
   children,
   variant = 'titleLarge',
   style,
@@ -54,9 +54,9 @@ export function Title({
       {children}
     </Text>
   );
-}
+});
 
-export function Subtitle({
+export const Subtitle = React.memo(function Subtitle({
   children,
   variant = 'titleMedium',
   color = colors.text.secondary,
@@ -68,9 +68,9 @@ export function Subtitle({
       {children}
     </Text>
   );
-}
+});
 
-export function Body({
+export const Body = React.memo(function Body({
   children,
   variant = 'bodyMedium',
   style,
@@ -81,9 +81,9 @@ export function Body({
       {children}
     </Text>
   );
-}
+});
 
-export function Caption({
+export const Caption = React.memo(function Caption({
   children,
   variant = 'bodySmall',
   color = colors.text.secondary,
@@ -95,9 +95,9 @@ export function Caption({
       {children}
     </Text>
   );
-}
+});
 
-export function Label({
+export const Label = React.memo(function Label({
   children,
   variant = 'labelLarge',
   style,
@@ -108,4 +108,4 @@ export function Label({
       {children}
     </Text>
   );
-}
+});

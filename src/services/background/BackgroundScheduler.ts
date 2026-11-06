@@ -15,6 +15,9 @@ import { initializeSchedulingOnStartup } from '../scheduler/ReminderScheduler';
 import { initDatabase } from '../database';
 import { SettingsRepository } from '../database/repositories';
 
+// Dev-only logger — no-op in production builds
+const log = (...args: unknown[]) => { if (__DEV__) { console.log(...args); } };
+
 // Task ID for the background fetch
 export const BACKGROUND_FETCH_TASK_ID = 'com.mediwarden.reschedule';
 
@@ -41,7 +44,7 @@ export async function initializeBackgroundFetch(): Promise<void> {
       },
       async (taskId: string) => {
         // This is called when background fetch fires
-        console.log('[BackgroundFetch] Task executed:', taskId);
+        log('[BackgroundFetch] Task executed:', taskId);
 
         try {
           await performBackgroundReschedule();
@@ -54,12 +57,12 @@ export async function initializeBackgroundFetch(): Promise<void> {
       },
       async (taskId: string) => {
         // Task timeout handler
-        console.log('[BackgroundFetch] Task timeout:', taskId);
+        log('[BackgroundFetch] Task timeout:', taskId);
         BackgroundFetch.finish(taskId);
       }
     );
 
-    console.log('[BackgroundFetch] Configure status:', status);
+    log('[BackgroundFetch] Configure status:', status);
 
     // Schedule a periodic task for weekly reschedule
     // Note: Android enforces minimum 15 minutes, so we use that and check internally
@@ -71,10 +74,10 @@ export async function initializeBackgroundFetch(): Promise<void> {
       enableHeadless: true,
     });
 
-    console.log('[BackgroundFetch] Scheduled weekly reschedule task');
+    log('[BackgroundFetch] Scheduled weekly reschedule task');
   } catch (error) {
     // Background fetch not available - this is okay, we have fallback mechanisms
-    console.log('[BackgroundFetch] Not available or failed to initialize:', error);
+    log('[BackgroundFetch] Not available or failed to initialize:', error);
   }
 }
 
@@ -82,7 +85,7 @@ export async function initializeBackgroundFetch(): Promise<void> {
  * Perform the actual rescheduling in background
  */
 async function performBackgroundReschedule(): Promise<void> {
-  console.log('[BackgroundFetch] Starting background reschedule...');
+  log('[BackgroundFetch] Starting background reschedule...');
 
   try {
     // Initialize database (needed for background context)
@@ -94,14 +97,14 @@ async function performBackgroundReschedule(): Promise<void> {
     const isStrictMode = settings.reminderMode === 'strict';
 
     if (!activeProfileId) {
-      console.log('[BackgroundFetch] No active profile, skipping reschedule');
+      log('[BackgroundFetch] No active profile, skipping reschedule');
       return;
     }
 
     // Lightweight init: cleanup orphans + fill today's gaps (preserves snoozed/displayed notifications)
     await initializeSchedulingOnStartup(activeProfileId, isStrictMode);
 
-    console.log('[BackgroundFetch] Background reschedule completed successfully');
+    log('[BackgroundFetch] Background reschedule completed successfully');
   } catch (error) {
     console.error('[BackgroundFetch] Error during background reschedule:', error);
     throw error;
@@ -119,13 +122,13 @@ export async function backgroundFetchHeadlessTask(event: {
   const { taskId, timeout } = event;
 
   if (timeout) {
-    console.log('[BackgroundFetch Headless] Task timed out:', taskId);
+    log('[BackgroundFetch Headless] Task timed out:', taskId);
     const BackgroundFetch = require('react-native-background-fetch').default;
     BackgroundFetch.finish(taskId);
     return;
   }
 
-  console.log('[BackgroundFetch Headless] Task executed:', taskId);
+  log('[BackgroundFetch Headless] Task executed:', taskId);
 
   try {
     await performBackgroundReschedule();
@@ -144,8 +147,8 @@ export async function stopBackgroundFetch(): Promise<void> {
   try {
     const BackgroundFetch = require('react-native-background-fetch').default;
     await BackgroundFetch.stop(BACKGROUND_FETCH_TASK_ID);
-    console.log('[BackgroundFetch] Stopped');
+    log('[BackgroundFetch] Stopped');
   } catch (error) {
-    console.log('[BackgroundFetch] Error stopping:', error);
+    log('[BackgroundFetch] Error stopping:', error);
   }
 }

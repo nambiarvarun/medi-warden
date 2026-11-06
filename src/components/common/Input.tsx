@@ -16,7 +16,7 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function Input({
+export const Input = React.memo(function Input({
   label,
   error,
   helperText,
@@ -53,7 +53,7 @@ export function Input({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

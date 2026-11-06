@@ -42,7 +42,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        console.log('[AppProviders] App came to foreground, checking notifications...');
+        if (__DEV__) console.log('[AppProviders] App came to foreground, checking notifications...');
         const { activeProfileId, reminderMode } = useSettingsStore.getState();
         if (activeProfileId) {
           try {
@@ -77,13 +77,13 @@ export function AppProviders({ children }: AppProvidersProps) {
 
       // Lightweight startup: cleanup orphans + fill today's gaps (preserves snoozed/displayed notifications)
       const { activeProfileId, reminderMode } = useSettingsStore.getState();
-      console.log(`[AppProviders] Active profile: ${activeProfileId}, reminder mode: ${reminderMode}`);
+      if (__DEV__) console.log(`[AppProviders] Active profile: ${activeProfileId}, reminder mode: ${reminderMode}`);
       if (activeProfileId) {
-        console.log('[AppProviders] Running lightweight scheduling init...');
+        if (__DEV__) console.log('[AppProviders] Running lightweight scheduling init...');
         await initializeSchedulingOnStartup(activeProfileId, reminderMode === 'strict');
-        console.log('[AppProviders] Finished scheduling init');
+        if (__DEV__) console.log('[AppProviders] Finished scheduling init');
       } else {
-        console.log('[AppProviders] No active profile, skipping reminder scheduling');
+        if (__DEV__) console.log('[AppProviders] No active profile, skipping reminder scheduling');
       }
 
       // Initialize background fetch for periodic rescheduling
@@ -103,16 +103,16 @@ export function AppProviders({ children }: AppProvidersProps) {
             const currentSettings = useSettingsStore.getState();
             const snooze = currentSettings.snoozeDuration || 15;
             const isStrict = currentSettings.reminderMode === 'strict';
-            console.log(`[Foreground Snooze] Scheduling for ${snooze} minutes, strict=${isStrict}`);
+            if (__DEV__) console.log(`[Foreground Snooze] Scheduling for ${snooze} minutes, strict=${isStrict}`);
             await handleSnoozeAction(data, snooze, isStrict);
-            console.log('[Foreground Snooze] Completed successfully');
+            if (__DEV__) console.log('[Foreground Snooze] Completed successfully');
           } catch (error) {
             console.error('[Foreground Snooze] Error:', error);
           }
         },
         onPress: (data) => {
           // Navigate to medication detail - handled by navigation
-          console.log('Notification pressed:', data.medicationId);
+          if (__DEV__) console.log('Notification pressed:', data.medicationId);
         },
       });
     } catch (error) {

@@ -101,7 +101,7 @@ export function HomeScreen() {
   }, []);
 
   // Format times for display
-  const formatScheduleTimes = (schedules: Schedule[] | undefined): string => {
+  const formatScheduleTimes = useCallback((schedules: Schedule[] | undefined): string => {
     if (!schedules || schedules.length === 0) return '';
     const allTimes: string[] = [];
     schedules.forEach((schedule) => {
@@ -117,10 +117,10 @@ export function HomeScreen() {
         return `${hours}:${minutes}`;
       })
       .join(', ');
-  };
+  }, []);
 
   // Helper to get next intake time for sorting
-  const getNextIntakeTime = (schedules: Schedule[] | undefined): number => {
+  const getNextIntakeTime = useCallback((schedules: Schedule[] | undefined): number => {
     if (!schedules || schedules.length === 0) return Infinity;
 
     const now = new Date();
@@ -149,13 +149,13 @@ export function HomeScreen() {
     }
 
     return intakeDate.getTime();
-  };
+  }, []);
 
   const today = new Date();
   const activeMeds = medications.filter((m) => m.isActive);
 
   // Helper to get status display info for a medication
-  const getStatusDisplay = (medId: string): { text: string; color: string } | null => {
+  const getStatusDisplay = useCallback((medId: string): { text: string; color: string } | null => {
     const doseLog = doseStatuses[medId];
     if (!doseLog) return null;
 
@@ -196,15 +196,15 @@ export function HomeScreen() {
     }
 
     return null;
-  };
+  }, [doseStatuses]);
 
   // Check if medication's dose for today is fully completed (taken today)
-  const isMedCompletedToday = (medId: string): boolean => {
+  const isMedCompletedToday = useCallback((medId: string): boolean => {
     const doseLog = doseStatuses[medId];
     if (!doseLog) return false;
     // Only 'taken' is fully completed; 'skipped' still allows taking
     return doseLog.status === 'taken' && !!doseLog.actionTime && isToday(new Date(doseLog.actionTime));
-  };
+  }, [doseStatuses]);
 
   // Sort: pending/upcoming by next intake time first, completed today at the bottom
   const sortedMeds = useMemo(() => {

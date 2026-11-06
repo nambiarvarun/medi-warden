@@ -24,7 +24,7 @@ interface ButtonProps {
   textStyle?: TextStyle;
 }
 
-export function Button({
+export const Button = React.memo(function Button({
   title,
   onPress,
   variant = 'primary',
@@ -71,7 +71,7 @@ export function Button({
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   base: {
