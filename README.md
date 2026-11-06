@@ -1,97 +1,157 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Medi-Warden
 
-# Getting Started
+A React Native medication reminder app for Android and iOS. Medi-Warden helps individuals and caretakers track medications across multiple profiles with flexible scheduling, adherence history, and reliable notifications — all stored locally with no backend or account required.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
 
-## Step 1: Start Metro
+- **Multiple profiles** — manage medications for yourself and others (family, patients) from a single app
+- **Flexible scheduling** — daily, weekly, or interval-based reminders with multiple times per day
+- **Two notification modes** — Strict (full-screen alarm, mandatory action) or Relaxed (standard notification with quick actions)
+- **Dose actions** — Take, Skip, or Snooze (5/10/15/30 min) directly from notifications or the home screen
+- **Adherence tracking** — per-medication and overall adherence history with taken/skipped/missed logs
+- **Stock management** — track remaining doses with configurable low-stock warnings; supports indefinite stock
+- **Fully offline** — SQLite database, no account, no network calls, no telemetry
+- **Android backup** — database survives app updates and device restores
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Screenshots
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+> Coming soon
 
-```sh
-# Using npm
-npm start
+## Tech Stack
 
-# OR using Yarn
-yarn start
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.83 (New Architecture) |
+| Language | TypeScript |
+| Navigation | React Navigation v7 (Stack + Bottom Tabs) |
+| State | Zustand v5 |
+| Database | SQLite (`react-native-sqlite-storage`) |
+| Notifications | Notifee v9 |
+| Background | `react-native-background-fetch` |
+| UI | React Native Paper v5 + Vector Icons |
+| Date utils | date-fns v4 |
+
+## Requirements
+
+- Node.js >= 20
+- React Native development environment ([setup guide](https://reactnative.dev/docs/set-up-your-environment))
+- Android: API 24+ (Android 7.0)
+- iOS: iOS 14+
+
+## Getting Started
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/your-username/medi-warden.git
+cd medi-warden
+npm install
 ```
 
-## Step 2: Build and run your app
+### 2. iOS setup (first time only)
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
+```bash
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### 3. Start Metro
 
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+```bash
+npm start
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### 4. Run on device or emulator
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```bash
+# Android
+npm run android
 
-## Step 3: Modify your app
+# iOS
+npm run ios
+```
 
-Now that you have successfully run the app, let's make changes!
+## Project Structure
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+```
+src/
+├── app/
+│   ├── navigation/         # RootNavigator, MainTabs, route types
+│   └── providers/          # AppProviders (DB init, notifications, stores)
+├── components/common/      # Reusable UI components
+├── hooks/                  # useAdherence and shared hooks
+├── screens/
+│   ├── home/               # Today's doses, quick Take/Skip actions
+│   ├── medications/        # Add/edit medications and schedules
+│   ├── history/            # Dose log history
+│   ├── profiles/           # Multi-profile management
+│   ├── settings/           # App settings and notification preferences
+│   └── onboarding/         # First-launch flow
+├── services/
+│   ├── database/           # SQLite setup, migrations, repositories
+│   ├── notifications/      # Notifee channels, triggers, actions
+│   ├── scheduler/          # ReminderScheduler — schedule/cancel reminders
+│   └── background/         # BackgroundScheduler for background fetch
+├── store/                  # Zustand stores (medications, settings, profiles)
+├── theme/                  # Colors, typography, spacing
+├── types/                  # Shared TypeScript interfaces
+└── utils/                  # Date helpers, schedule utilities, constants
+```
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## Architecture
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+```
+Screens → Zustand Stores → Repositories → SQLite
+              ↓
+        Services (NotificationService, ReminderScheduler)
+```
 
-## Congratulations! :tada:
+- **Screens** read from stores and dispatch actions
+- **Stores** call repositories for persistence and services for side effects
+- **ReminderScheduler** is the single source of truth for notification scheduling; it uses `AlarmType.SET_ALARM_CLOCK` for Doze-proof delivery on Android
+- **Background fetch** runs `initializeSchedulingOnStartup` on cold start and periodic wakeup to top up notifications without cancelling displayed ones
 
-You've successfully run and modified your React Native App. :partying_face:
+### Notification Modes
 
-### Now what?
+| Mode | Delivery | User action |
+|---|---|---|
+| Strict | Full-screen alarm intent | Must act before dismissing |
+| Relaxed | Standard heads-up notification | Optional quick actions |
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+Both modes support Take, Skip, and Snooze actions. Snooze reschedules a one-off trigger at `now + snoozeDuration`.
 
-# Troubleshooting
+### Database Schema
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+| Table | Purpose |
+|---|---|
+| `profiles` | Named profiles (person or caretaker) |
+| `medications` | Medication details and stock |
+| `schedules` | Daily / weekly / interval patterns per medication |
+| `dose_logs` | Dose events: taken / skipped / missed / pending |
+| `settings` | App-wide settings keyed by profile |
 
-# Learn More
+Migrations live in `src/services/database/migrations.ts`. The current schema version is **2**.
 
-To learn more about React Native, take a look at the following resources:
+## Available Scripts
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+```bash
+npm start          # Start Metro dev server
+npm run android    # Build and run on Android
+npm run ios        # Build and run on iOS
+npm run lint       # Run ESLint
+npm test           # Run Jest tests
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'feat: add your feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
+
+Please follow the existing code style and ensure `npm run lint` passes before submitting.
+
+## License
+
+[MIT](LICENSE)
